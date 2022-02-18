@@ -69,6 +69,15 @@ if ! check_dependency tar        1.22    4; then EXIT_STATUS=-1; fi
 if ! check_dependency makeinfo   4.7     4; then EXIT_STATUS=-1; fi  # texinfo
 if ! check_dependency xz         5.0.0   4; then EXIT_STATUS=-1; fi
 
+# check that yacc is a link to bison
+if [ ! -h /usr/bin/yacc -a "$(readlink -f /usr/bin/yacc)"="/usr/bin/bison.yacc" ]
+then
+    echo "ERROR: /usr/bin/yacc needs to be a link to /usr/bin/bison.yacc"
+    EXIT_STATUS=-1
+else
+    echo "/usr/bin/yacc -> /usr/bin/bison.yacc"
+fi
+
 # check that awk is a link to gawk
 if [ ! -h /usr/bin/awk -a "$(readlink -f /usr/bin/awk)"="/usr/bin/gawk" ]
 then
@@ -86,7 +95,7 @@ then
     echo "ERROR: Linux kernel version '$LINUX_VERS' does not satisfy minium version $MIN_LINUX_VERS"
     EXIT_STATUS=-1
 else
-    echo "Linux kernel version $LINUX_VERS."
+    echo "Linux kernel version $LINUX_VERS"
 fi
 
 # check perl version
@@ -97,7 +106,7 @@ then
     echo "ERROR: Perl version '$PERL_VERS' does not satisfy minium version $MIN_PERL_VERS"
     EXIT_STATUS=-1
 else
-    echo "Perl version $PERL_VERS."
+    echo "Perl version $PERL_VERS"
 fi
 
 # check G++ compilation
