@@ -1,5 +1,11 @@
-#!/bin/bash
+#!/usr/bin/bash
 # Script to check build dependencies
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# This is likely to break on many machines.
+# If it does, just manually check that you have
+# the right dependencies and versions according
+# to the listing in LFS 11.0, Chapter 2.2.
+
 EXIT_STATUS=0
 
 function compare_version {
