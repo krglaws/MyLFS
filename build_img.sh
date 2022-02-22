@@ -10,10 +10,6 @@
 # block devices.
 
 set -e # exit if any command fails
-MYLFS_SIZE=$((10*1024*1024*1024)) # 10 GiB
-MYLFS_IMG=mylfs.img
-MYLFS=/mnt/mylfs
-MYLFS_FS=ext4
 
 if [ $UID != "0" ]
 then
@@ -23,13 +19,13 @@ fi
 
 # create image file
 echo "Creating disk image..."
-fallocate -l$MYLFS_SIZE $MYLFS_IMG
+fallocate -l$LFS_IMG_SIZE $LFS_IMG
 echo "Done."
 
 # attach loop device
 LOOP=$(losetup -f)
 echo "Creating loop device ${LOOP}..."
-losetup $LOOP $MYLFS_IMG
+losetup $LOOP $LFS_IMG
 echo "Done."
 
 # partition the device
@@ -48,7 +44,7 @@ n       # new partition
         # default end sector
 w       # write to device and quit
 "
-FDISK_STR=$(echo "$FDISK_STR" | sed 's/ *#.*//g')
+FDISK_STR=$(echo "$FDISK_STR" | sed 's/ *.*//g')
 # fdisk fails to get kernel to re-read the partition table
 # so ignore non-zero exit code, and manually re-read
 set +e
@@ -62,19 +58,19 @@ echo "Done."
 echo "Reattaching loop device $LOOP..."
 losetup -d $LOOP
 sleep 1 # give the kernel a sec
-losetup -P $LOOP $MYLFS_IMG
+losetup -P $LOOP $LFS_IMG
 echo "Done."
 
 # create filesystem
-echo "Creating $MYLFS_FS filesystem..."
+echo "Creating $LFS_FS filesystem..."
 LOOP_P2="${LOOP}p2"
-mkfs -t $MYLFS_FS $LOOP_P2 >> /dev/null
+mkfs -t $LFS_FS $LOOP_P2 >> /dev/null
 
 # mount root partition
-echo "Mounting root partition to $MYLFS"
-if [ ! -d $MYLFS ]
+echo "Mounting root partition to $LFS"
+if [ ! -d $LFS ]
 then
-    mkdir $MYLFS
+    mkdir $LFS
 fi
-mount $LOOP_P2 $MYLFS
+mount $LOOP_P2 $LFS
 echo "Done."
