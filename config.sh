@@ -1,6 +1,8 @@
 #!/usr/bin/bash
 # LFS Build Configuration
 # ~~~~~~~~~~~~~~~~~~~~~~~
+# This file should be sourced by the other scripts
+# that need these variables.
 export LFS=/mnt/lfs
 export LFS_TGT=$(uname -m)-lfs-linux-gnu
 export LFS_FS=ext4
@@ -19,4 +21,3 @@ do
         exit -1
     fi
 done
-

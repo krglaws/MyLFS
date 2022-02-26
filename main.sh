@@ -3,31 +3,13 @@ set -e
 
 source ./config.sh
 
-# create user + group if not present
-if [ -z "$(getent group $LFS_USR)" ]
-then
-    echo "Creating group ${LFS_USER}..."
-    groupadd $LFS_USER
-    echo "Done."
-fi
+echo "Starting Stage 1..."
+stage1/main.sh
+echo "Completed Stage 1."
 
-if ! id $LFS_USER
-then
-    echo "Creating user ${LFS_USER}..."
-    useradd -s /bin/bash -g $LFS_USER -m -k /dev/null $LFS_USER
-    echo "Done."
-fi
+mkdir -p $LFS/sources
 
-echo "Checking dependency versions..."
-./check_dep_versions.sh
-echo "Done."
-
-echo "Building image..."
-./build_img.sh
-echo "Done."
-
-echo "Starting system build..."
-chown $LFS_USER $LFS
-sudo -u $LFS_USER ./build_packages.sh
-echo "Done."
+echo "Starting Stage 2..."
+stage2/main.sh
+echo "Completed Stage 2."
 

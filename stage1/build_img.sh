@@ -11,12 +11,6 @@
 
 set -e # exit if any command fails
 
-if [ $UID != "0" ]
-then
-    echo "$0 must be executed as root"
-    exit -1
-fi
-
 # create image file
 echo "Creating disk image..."
 fallocate -l$LFS_IMG_SIZE $LFS_IMG
