@@ -107,7 +107,7 @@ fi
 # check perl version
 MIN_PERL_VERS=5.8.8
 PERL_VERS=$(perl -V:version | cut -d"'" -f2)
-if ! compare_version "$MIN_PERL_VERS" "$LINUX_VERS"
+if ! compare_version "$MIN_PERL_VERS" "$PERL_VERS"
 then
     echo "ERROR: Perl version '$PERL_VERS' does not satisfy minium version $MIN_PERL_VERS"
     EXIT_STATUS=-1

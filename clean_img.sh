@@ -2,6 +2,7 @@
 # Cleans up the mounted image file
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 set -e
+
 source ./config.sh
 
 echo "Cleaning LFS image..."
