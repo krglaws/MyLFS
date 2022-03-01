@@ -3,10 +3,13 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~
 # This file should be sourced by the other scripts
 # that need these variables.
+
+SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+
 export LFS=/mnt/lfs
 export LFS_TGT=$(uname -m)-lfs-linux-gnu
 export LFS_FS=ext4
-export LFS_IMG=lfs.img
+export LFS_IMG=$SCRIPT_DIR/lfs.img
 export LFS_IMG_SIZE=$((10*1024*1024*1024)) # 10 GiB
 export LFS_USER=lfs
 

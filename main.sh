@@ -9,6 +9,8 @@ fi
 
 source ./config.sh
 
+SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+
 echo "Starting Stage 1..."
 stage1/main.sh
 echo "Completed Stage 1."
@@ -18,6 +20,9 @@ stage2/main.sh
 echo "Completed Stage 2."
 
 echo "Starting Stage 3..."
-su $LFS_USER --login --shell=/usr/bin/bash --command="source ./config.sh && source ./user_config.sh && stage3/main.sh"
+set -x
+su $LFS_USER --shell=/usr/bin/bash --command\
+    "source $SCRIPT_DIR/config.sh && source $SCRIPT_DIR/user_config.sh && $SCRIPT_DIR/stage3/main.sh"
+set +x
 echo "Completed Stage 3."
 
