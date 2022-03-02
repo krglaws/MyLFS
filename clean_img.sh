@@ -3,7 +3,9 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 set -e
 
-source ./config.sh
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+
+source $SCRIPT_DIR/config/global.sh
 
 echo "Cleaning LFS image..."
 
@@ -12,7 +14,6 @@ if [ -n "$(mount | grep $LFS)" ]
 then
     echo "Unmounting ${LFS}..."
     umount $LFS
-    echo "Done."
 fi
 
 # detach loop device
@@ -20,15 +21,16 @@ if [ -n "$(losetup | grep $LFS_IMG)" ]
 then
     echo "Detaching ${LFS_IMG}..."
     losetup -d $(echo "$(losetup | grep $LFS_IMG)" | cut -d" " -f1)
-    echo "Done."
 fi
 
 # delete img
 if [ -f $LFS_IMG ]
 then
+    read -p "WARNING: This will delete ${LFS_IMG}. Continue? (Y/N): " CONFIRM
+    [[ $CONFIRM == [yY] || $CONFIRM == [yY][eE][sS] ]] || exit
     echo "Deleting ${LFS_IMG}..."
     rm $LFS_IMG
-    echo "Done."
 fi
 
 echo "Done."
+

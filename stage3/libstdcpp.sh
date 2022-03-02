@@ -1,13 +1,19 @@
-#/usr/bin/env bash
-set -ex
+#!/usr/bin/env bash
+# Libstdc++ pass 1
+# ~~~~~~~~~~~~~~~~
+set -e
 
 cd $LFS/sources
 
-# libstdc++
-tar -xf gcc-11.2.0.tar.xz
-cd gcc-11.2.0
+eval "$(grep PKG_GCC $PACKAGE_LIST)"
+curl -LO $PKG_GCC
 
-mkdir -v build
+PKG_GCC=$(basename $PKG_GCC)
+
+tar -xf $PKG_GCC
+cd ${PKG_GCC%.tar**}
+
+mkdir build
 cd build
 
 ../libstdc++-v3/configure           \
@@ -23,4 +29,5 @@ make
 make DESTDIR=$LFS install
 
 cd $LFS/sources
-rm -rf gcc-11.2.0
+rm -rf ${PKG_GCC%.tar*} $PKG_GCC
+

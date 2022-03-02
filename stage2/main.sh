@@ -1,4 +1,6 @@
-#!/usr/bin/bash
+#!/usr/bin/env bash
+# Stage 2
+# ~~~~~~~
 set -e
 
 if [ "$UID" != "0" ]

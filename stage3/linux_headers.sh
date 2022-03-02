@@ -1,16 +1,25 @@
 #!/usr/bin/env bash
-set -ex
+# Linux API headers
+# ~~~~~~~~~~~~~~~~~
+set -e
 
 cd $LFS/sources
 
-# linux api headers
-tar -xf linux-5.13.12.tar.xz
-cd linux-5.13.12
+eval "$(grep PKG_LINUX $PACKAGE_LIST)"
+curl -LO $PKG_LINUX
 
+PKG_LINUX=$(basename $PKG_LINUX)
+
+tar -xf $PKG_LINUX
+cd ${PKG_LINUX%.tar*}
+
+make mrproper
 make headers
+
 find usr/include -name '.*' -delete
 rm usr/include/Makefile
 cp -rv usr/include $LFS/usr
 
 cd $LFS/sources
-rm -rf linux-5.13.12
+rm -rf ${PKG_LINUX%.tar*} $PKG_LINUX
+

@@ -1,17 +1,30 @@
 #/usr/bin/env bash
-set -ex
+# GCC pass 1
+# ~~~~~~~~~~
+set -e
 
 cd $LFS/sources
 
-# GCC-11.2.0 pass 1
-tar -xf gcc-11.2.0.tar.xz
-cd gcc-11.2.0
-tar -xf ../mpfr-4.1.0.tar.xz
-mv -fv mpfr-4.1.0 mpfr
-tar -xf ../gmp-6.2.1.tar.xz
-mv -fv gmp-6.2.1 gmp
-tar -xf ../mpc-1.2.1.tar.gz
-mv mpc-1.2.1 mpc
+eval "$(grep "PKG_GCC\|PKG_MPFR\|PKG_GMP\|PKG_MPC" $PACKAGE_LIST)"
+curl -LO $PKG_GCC -LO $PKG_MPFR -LO $PKG_GMP -LO $PKG_MPC
+
+PKG_GCC=$(basename $PKG_GCC)
+PKG_MPFR=$(basename $PKG_MPFR)
+PKG_GMP=$(basename $PKG_GMP)
+PKG_MPC=$(basename $PKG_MPC)
+
+tar -xf $PKG_GCC
+cd ${PKG_GCC%.tar*}
+
+tar -xf ../$PKG_MPFR
+mv ${PKG_MPFR%.tar*} mpfr
+
+tar -xf ../$PKG_GMP
+mv ${PKG_GMP%.tar*} gmp
+
+tar -xf ../$PKG_MPC
+mv ${PKG_MPC%.tar*} mpc
+
 case $(uname -m) in
 	x86_64)
 		sed -e '/m64=/s/lib64/lib/' -i.orig gcc/config/i386/t-linux64
@@ -24,7 +37,7 @@ cd build
 ../configure                                       \
     --target=$LFS_TGT                              \
     --prefix=$LFS/tools                            \
-    --with-glibc-version=2.11                      \
+    --with-glibc-version=2.35                      \
     --with-sysroot=$LFS                            \
     --with-newlib                                  \
     --without-headers                              \
@@ -50,4 +63,5 @@ cat gcc/limitx.h gcc/glimits.h gcc/limity.h > \
   `dirname $($LFS_TGT-gcc -print-libgcc-file-name)`/install-tools/include/limits.h
 
 cd $LFS/sources
-rm -rf gcc-11.2.0
+rm -rf ${PKG_GCC%.tar*} $PKG_GCC $PKG_MPFR $PKG_MPC $PKG_GMP
+

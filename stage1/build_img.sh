@@ -1,15 +1,7 @@
-#!/usr/bin/bash
+#!/usr/bin/env bash
 # Script to create OS image file
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# This script might be considered a little bit
-# dangerous since it needs to be run as root,
-# and involves partitioning, creating new filesystems,
-# mounting, etc. I tried to make it somewhat safer
-# by operating only image files that are mounted as
-# loop devices. So ideally, it won't touch any actual
-# block devices.
-
-set -e # exit if any command fails
+set -e
 
 # create image file
 echo -n "Creating disk image... "
@@ -69,3 +61,4 @@ then
 fi
 mount $LOOP_P2 $LFS
 echo "done."
+
