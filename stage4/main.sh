@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stage 3
+# Stage 4
 # ~~~~~~~
 set -e
 

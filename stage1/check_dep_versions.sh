@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Script to check build dependencies
+# Check build dependencies
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 EXIT_STATUS=0
@@ -13,10 +13,10 @@ function compare_version {
     do
         MINDIGIT=$(echo $MINVERS | cut -d"." -f$FIELD)
         CURRDIGIT=$(echo $CURRVERS | cut -d"." -f$FIELD)
-        if [ "$CURRDIGIT" -gt "$MINDIGIT" ]
+        if [[ "0x$CURRDIGIT" -gt "0x$MINDIGIT" ]]
         then
             return 0
-        elif [ "$CURRDIGIT" -eq "$MINDIGIT" ]
+        elif [[ "0x$CURRDIGIT" -eq "0x$MINDIGIT" ]]
         then
             continue
         else
@@ -44,23 +44,19 @@ function check_dependency {
     if ! compare_version "$MINVERS" "$CURRVERS"
     then
         echo "ERROR: $PROG $CURRVERS does not satisfy minimum version $MINVERS"
-    else
-        echo "$PROG $CURRVERS"
     fi
 }
 
 if ! check_dependency bash       3.2     4; then EXIT_STATUS=-1; fi
-if ! check_dependency ld         2.25    7; then EXIT_STATUS=-1; fi  # binutils
+if ! check_dependency ld         2.13.1  7; then EXIT_STATUS=-1; fi  # binutils
 if ! check_dependency bison      2.7     4; then EXIT_STATUS=-1; fi
-if ! check_dependency bzip2      1.0.4   8; then EXIT_STATUS=-1; fi
 if ! check_dependency chown      6.9     4; then EXIT_STATUS=-1; fi  # coreutils
 if ! check_dependency diff       2.8.1   4; then EXIT_STATUS=-1; fi
 if ! check_dependency find       4.2.31  4; then EXIT_STATUS=-1; fi
 if ! check_dependency gawk       4.0.1   3; then EXIT_STATUS=-1; fi
-if ! check_dependency gcc        6.2     4; then EXIT_STATUS=-1; fi
-if ! check_dependency g++        6.2     4; then EXIT_STATUS=-1; fi
-if ! check_dependency ldd        2.11    5; then EXIT_STATUS=-1; fi  # glibc
-if ! check_dependency grep       1.3.12  4; then EXIT_STATUS=-1; fi
+if ! check_dependency gcc        4.8     4; then EXIT_STATUS=-1; fi
+if ! check_dependency g++        4.8     4; then EXIT_STATUS=-1; fi
+if ! check_dependency grep       2.5.1a  4; then EXIT_STATUS=-1; fi
 if ! check_dependency gzip       1.3.12  2; then EXIT_STATUS=-1; fi
 if ! check_dependency m4         1.4.10  4; then EXIT_STATUS=-1; fi
 if ! check_dependency make       4.0     3; then EXIT_STATUS=-1; fi
@@ -76,8 +72,6 @@ if [ ! -h /usr/bin/yacc -a "$(readlink -f /usr/bin/yacc)"="/usr/bin/bison.yacc" 
 then
     echo "ERROR: /usr/bin/yacc needs to be a link to /usr/bin/bison.yacc"
     EXIT_STATUS=-1
-else
-    echo "/usr/bin/yacc -> /usr/bin/bison.yacc"
 fi
 
 # check that awk is a link to gawk
@@ -85,8 +79,6 @@ if [ ! -h /usr/bin/awk -a "$(readlink -f /usr/bin/awk)"="/usr/bin/gawk" ]
 then
     echo "ERROR: /usr/bin/awk needs to be a link to /usr/bin/gawk"
     EXIT_STATUS=-1
-else
-    echo "/usr/bin/awk -> /usr/bin/gawk"
 fi
 
 # check linux version
@@ -96,8 +88,6 @@ if ! compare_version "$MIN_LINUX_VERSION" "$LINUX_VERS"
 then
     echo "ERROR: Linux kernel version '$LINUX_VERS' does not satisfy minium version $MIN_LINUX_VERS"
     EXIT_STATUS=-1
-else
-    echo "Linux kernel version $LINUX_VERS"
 fi
 
 # check perl version
@@ -107,19 +97,16 @@ if ! compare_version "$MIN_PERL_VERS" "$PERL_VERS"
 then
     echo "ERROR: Perl version '$PERL_VERS' does not satisfy minium version $MIN_PERL_VERS"
     EXIT_STATUS=-1
-else
-    echo "Perl version $PERL_VERS"
 fi
 
 # check G++ compilation
 echo 'int main(){}' > dummy.c && g++ -o dummy dummy.c
-if [ -x dummy ]
+if [ ! -x dummy ]
 then
-    echo "g++ compilation OK"
-else
     echo "ERROR: g++ compilation failed"
     EXIT_STATUS=-1
 fi
 rm -f dummy.c dummy
 
 exit $EXIT_STATUS
+

@@ -4,18 +4,13 @@
 set -e
 
 # create image file
-echo -n "Creating disk image... "
 fallocate -l$LFS_IMG_SIZE $LFS_IMG
-echo "done."
 
 # attach loop device
 LOOP=$(losetup -f)
-echo -n "Creating loop device ${LOOP}... "
 losetup $LOOP $LFS_IMG
-echo "done."
 
 # partition the device
-echo -n "Partitioning device... "
 FDISK_STR="
 g       # create GPT
 n       # new partition
@@ -38,27 +33,20 @@ fdisk $LOOP &>> /dev/null <<EOF
 $FDISK_STR
 EOF
 set -e
-echo "done."
 
 # reattach loop device to re-read partition table
-echo -n "Reattaching loop device $LOOP... "
 losetup -d $LOOP
 sleep 1 # give the kernel a sec
 losetup -P $LOOP $LFS_IMG
-echo "done."
 
 # create filesystem
-echo -n "Creating $LFS_FS filesystem... "
 LOOP_P2="${LOOP}p2"
 mkfs -t $LFS_FS $LOOP_P2 &>> /dev/null
-echo "done."
 
 # mount root partition
-echo -n "Mounting root partition to ${LFS}..."
 if [ ! -d $LFS ]
 then
     mkdir $LFS
 fi
 mount $LOOP_P2 $LFS
-echo "done."
 

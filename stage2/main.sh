@@ -1,21 +1,22 @@
 #!/usr/bin/env bash
-# Stage 2
+# Stage 3
 # ~~~~~~~
 set -e
 
 if [ "$UID" != "0" ]
 then
-    echo "ERROR: $0 must be executed as root."
+    echo "ERROR: $0 must be run as root."
     exit -1
 fi
 
-if [ -z "$LFS" -o -z "$LFS_USER" ]
+if [ -z "$LFS" ]
 then
-    echo "ERROR: Missing config vars. Be sure to source config.sh before running this script."
+    echo "ERROR: $0: Missing config vars."
     exit -1
 fi
 
-echo "Creating basic directory layout..."
+echo -n "Creating basic directory layout... "
+
 mkdir -p $LFS/sources
 chmod a+wt $LFS/sources
 
@@ -31,26 +32,36 @@ case $(uname -m) in
 esac
 
 mkdir -p $LFS/tools
-echo "Done."
+
+echo "done."
+
+echo -n "Creating $LFS user... "
 
 if [ -z "$(getent group $LFS_USER)" ]
 then
-    echo "Creating group ${LFS_USER}..."
     groupadd $LFS_USER
-    echo "Done."
 fi
 
-if ! id $LFS_USER
+if ! id $LFS_USER &> /dev/null
 then
-    echo "Creating user ${LFS_USER}..."
     useradd -s /bin/bash -g $LFS_USER -m -k /dev/null $LFS_USER
-    echo "Done."
 fi
 
-echo "Giving user $LFS_USER directory ownership in $LFS..."
 chown $LFS_USER $LFS/{usr{,/*},lib,var,etc,bin,sbin,tools,sources}
 case $(uname -m) in
   x86_64) chown $LFS_USER $LFS/lib64 ;;
 esac
-echo "Done."
+
+echo "done."
+
+echo -n "Downloading packages to $LFS/sources... "
+
+PACKAGE_URLS=$(cat $PACKAGE_LIST | cut -d"=" -f2)
+wget --quiet --directory-prefix $LFS/sources --input-file - <<EOF
+$PACKAGE_URLS
+EOF
+
+chown $LFS_USER $LFS/sources/*
+
+echo "done."
 

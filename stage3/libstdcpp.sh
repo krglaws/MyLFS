@@ -6,8 +6,6 @@ set -e
 cd $LFS/sources
 
 eval "$(grep PKG_GCC $PACKAGE_LIST)"
-curl -LO $PKG_GCC
-
 PKG_GCC=$(basename $PKG_GCC)
 
 tar -xf $PKG_GCC
@@ -29,5 +27,5 @@ make
 make DESTDIR=$LFS install
 
 cd $LFS/sources
-rm -rf ${PKG_GCC%.tar*} $PKG_GCC
+rm -rf ${PKG_GCC%.tar*}
 

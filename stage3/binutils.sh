@@ -6,8 +6,6 @@ set -e
 cd $LFS/sources
 
 eval "$(grep "PKG_BINUTILS\|PATCH_BINUTILS" $PACKAGE_LIST)"
-curl -LO $PKG_BINUTILS -LO $PATCH_BINUTILS
-
 PKG_BINUTILS=$(basename $PKG_BINUTILS)
 PATCH_BINUTILS=$(basename $PATCH_BINUTILS)
 
@@ -36,5 +34,5 @@ D2=$(date +%s)
 echo "1 SBU == $((D2-D1)) seconds."
 
 cd $LFS/sources
-rm -rf ${PKG_BINUTILS%.tar*} $PKG_BINUTILS $PATCH_BINUTILS
+rm -rf ${PKG_BINUTILS%.tar*}
 

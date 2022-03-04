@@ -6,8 +6,6 @@ set -e
 cd $LFS/sources
 
 eval "$(grep "PKG_GLIBC\|PATCH_GLIBC" $PACKAGE_LIST)"
-curl -LO $PKG_GLIBC -LO $PATCH_GLIBC
-
 PKG_GLIBC=$(basename $PKG_GLIBC)
 PATCH_GLIBC=$(basename $PATCH_GLIBC)
 
@@ -61,5 +59,5 @@ rm dummy.c a.out
 $LFS/tools/libexec/gcc/$LFS_TGT/11.2.0/install-tools/mkheaders
 
 cd $LFS/sources
-rm -rf ${PKG_GLIBC%.tar*} $PKG_GLIBC $PATCH_GLIBC
+rm -rf ${PKG_GLIBC%.tar*}
 

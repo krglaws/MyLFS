@@ -5,23 +5,23 @@ set -e
 
 if [ "$UID" != "0" ]
 then
-    echo "ERROR: $0 must be executed as root"
+    echo "ERROR: $0 must be run as root."
     exit -1
 fi
 
-if [ -z "$LFS" -o -z "$LFS_USER" ]
+if [ -z "$LFS" ]
 then
-    echo "ERROR: Missing config vars. Be sure to source config.sh before running this script."
+    echo "ERROR: $0: Missing config vars."
     exit -1
 fi
 
-SCRIPT_DIR=$(get_script_dir $BASH_SOURCE)
+cd $(get_script_dir $BASH_SOURCE)
 
-echo "Checking dependency versions..."
-$SCRIPT_DIR/check_dep_versions.sh
-echo "Finished checking dependencies."
+echo -n "Checking dependency versions... "
+./check_dep_versions.sh
+echo "done."
 
-echo "Building image..."
-$SCRIPT_DIR/build_img.sh
-echo "Finished building image."
+echo -n "Building image... "
+./build_img.sh
+echo "done."
 

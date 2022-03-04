@@ -3,8 +3,13 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 set -e
 
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+if [ "$UID" != "0" ]
+then
+    echo "ERROR: $0 must be run as root."
+    exit -1
+fi
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 source $SCRIPT_DIR/config/global.sh
 
 echo "Cleaning LFS image..."

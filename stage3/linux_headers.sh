@@ -6,8 +6,6 @@ set -e
 cd $LFS/sources
 
 eval "$(grep PKG_LINUX $PACKAGE_LIST)"
-curl -LO $PKG_LINUX
-
 PKG_LINUX=$(basename $PKG_LINUX)
 
 tar -xf $PKG_LINUX
@@ -21,5 +19,5 @@ rm usr/include/Makefile
 cp -rv usr/include $LFS/usr
 
 cd $LFS/sources
-rm -rf ${PKG_LINUX%.tar*} $PKG_LINUX
+rm -rf ${PKG_LINUX%.tar*}
 

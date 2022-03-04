@@ -1,6 +1,6 @@
-#/usr/bin/env bash
-# GCC pass 1
-# ~~~~~~~~~~
+#!/usr/bin/env bash
+# GCC Stage 4
+# ~~~~~~~~~~~
 set -e
 
 cd $LFS/sources
@@ -24,27 +24,27 @@ tar -xf ../$PKG_MPC
 mv ${PKG_MPC%.tar*} mpc
 
 case $(uname -m) in
-	x86_64)
-		sed -e '/m64=/s/lib64/lib/' -i.orig gcc/config/i386/t-linux64
-	;;
+  x86_64)
+    sed -e '/m64=/s/lib64/lib/' -i.orig gcc/config/i386/t-linux64
+  ;;
 esac
 
 mkdir build
 cd build
 
+mkdir -p $LFS_TGT/libgcc
+ln -s ../../../libgcc/gthr-posix.h $LFS_TGT/libgcc/gthr-default.h
+
 ../configure                                       \
-    --target=$LFS_TGT                              \
-    --prefix=$LFS/tools                            \
-    --with-glibc-version=2.35                      \
-    --with-sysroot=$LFS                            \
-    --with-newlib                                  \
-    --without-headers                              \
+    --build=$(../config.guess)                     \
+    --host=$LFS_TGT                                \
+    --prefix=/usr                                  \
+    CC_FOR_TARGET=$LFS_TGT-gcc                     \
+    --with-build-sysroot=$LFS                      \
     --enable-initfini-array                        \
     --disable-nls                                  \
-    --disable-shared                               \
     --disable-multilib                             \
     --disable-decimal-float                        \
-    --disable-threads                              \
     --disable-libatomic                            \
     --disable-libgomp                              \
     --disable-libquadmath                          \
@@ -54,11 +54,9 @@ cd build
     --enable-languages=c,c++
 
 make
-make install
+make DESTDIR=$LFS install
 
-cd ..
-cat gcc/limitx.h gcc/glimits.h gcc/limity.h > \
-  `dirname $($LFS_TGT-gcc -print-libgcc-file-name)`/install-tools/include/limits.h
+ln -s gcc $LFS/usr/bin/cc
 
 cd $LFS/sources
 rm -rf ${PKG_GCC%.tar*}
