@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Binutils pass 1
-# ~~~~~~~~~~~~~~~
+# Binutils Stage 3
+# ~~~~~~~~~~~~~~~~
 set -e
 
 cd $LFS/sources

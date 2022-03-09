@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Stage 1
 # ~~~~~~~
+# This stage covers chapters 1-2 of LFS 11.1,
+# which involves checking system requirements,
+# and creating and partitioning a virtual disk.
 set -e
 
 if [ "$UID" != "0" ]
@@ -15,7 +18,7 @@ then
     exit -1
 fi
 
-cd $(get_script_dir $BASH_SOURCE)
+cd $(dirname $0)
 
 echo -n "Checking dependency versions... "
 ./check_dep_versions.sh

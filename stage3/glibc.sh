@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Glibc pass 1
-# ~~~~~~~~~~~~
+# Glibc Stage 3
+# ~~~~~~~~~~~~~
 set -e
 
 cd $LFS/sources

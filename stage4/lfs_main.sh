@@ -15,8 +15,6 @@ then
     exit -1
 fi
 
-cd $(get_script_dir $BASH_SOURCE)
-
 build_package "M4" ./m4.sh $LFS/sources/m4_stage4.log
 build_package "ncurses" ./ncurses.sh $LFS/sources/ncurses_stage4.log
 build_package "Bash" ./bash.sh $LFS/sources/bash_stage4.log

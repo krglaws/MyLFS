@@ -3,28 +3,19 @@
 # This file should be sourced by the other scripts
 # that need these variables.
 
-function get_script_dir {
-    SOURCE=$1
-
-    if [ -z "$SOURCE" ]
-    then
-        echo "ERROR: get_script_dir missing BASH_SOURCE parameter."
-        exit -1
-    fi
-
-    echo "$(cd -- "$(dirname -- "$SOURCE")" &> /dev/null && pwd)"
-}
-
-export -f get_script_dir
-export PACKAGE_LIST=$(get_script_dir $BASH_SOURCE)/pkgs.sh
+export CONF_DIR=$(cd $(dirname $BASH_SOURCE) && pwd)
+export MAIN_DIR=$(dirname $CONF_DIR)
+export GLOBAL_CONF=$CONF_DIR/global.sh
+export USER_CONF=$CONF_DIR/user.sh
+export PACKAGE_LIST=$CONF_DIR/pkgs.sh
 export LFS=/mnt/lfs
 export LFS_TGT=$(uname -m)-lfs-linux-gnu
 export LFS_FS=ext4
-export LFS_IMG=$(get_script_dir $BASH_SOURCE)/lfs.img
+export LFS_IMG=$MAIN_DIR/lfs.img
 export LFS_IMG_SIZE=$((10*1024*1024*1024)) # 10 GiB
 export LFS_USER=lfs
 
-KEYS="PACKAGE_LIST LFS LFS_TGT LFS_FS LFS_IMG LFS_IMG_SIZE LFS_USER"
+KEYS="CONF_DIR MAIN_DIR GLOBAL_CONF USER_CONF PACKAGE_LIST LFS LFS_TGT LFS_FS LFS_IMG LFS_IMG_SIZE LFS_USER"
 
 for KEY in $KEYS
 do

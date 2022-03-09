@@ -1,6 +1,6 @@
 #/usr/bin/env bash
-# GCC pass 1
-# ~~~~~~~~~~
+# GCC Stage 3
+# ~~~~~~~~~~~
 set -e
 
 cd $LFS/sources

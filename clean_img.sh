@@ -18,7 +18,7 @@ echo "Cleaning LFS image..."
 if [ -n "$(mount | grep $LFS)" ]
 then
     echo "Unmounting ${LFS}..."
-    umount $LFS
+    mount | grep $LFS | cut -d" " -f3 | tac | xargs umount
 fi
 
 # detach loop device

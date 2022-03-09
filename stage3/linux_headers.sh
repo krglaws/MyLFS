@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Linux API headers
-# ~~~~~~~~~~~~~~~~~
+# Linux API headers Stage 3
+# ~~~~~~~~~~~~~~~~~~~~~~~~~
 set -e
 
 cd $LFS/sources

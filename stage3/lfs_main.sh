@@ -15,8 +15,6 @@ then
     exit -1
 fi
 
-cd $(get_script_dir $BASH_SOURCE)
-
 build_package "Binutils" ./binutils.sh $LFS/sources/binutils_stage3.log
 build_package "GCC" ./gcc.sh $LFS/sources/gcc_stage3.log
 build_package "Linux headers" ./linux_headers.sh $LFS/sources/linux_headers_stage3.log

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Libstdc++ Stage 3
+# Libstdc++ Stage 5
 # ~~~~~~~~~~~~~~~~~
 set -e
 
-cd $LFS/sources
+cd /sources
 
 eval "$(grep PKG_GCC $PACKAGE_LIST)"
 PKG_GCC=$(basename $PKG_GCC)
@@ -11,21 +11,22 @@ PKG_GCC=$(basename $PKG_GCC)
 tar -xf $PKG_GCC
 cd ${PKG_GCC%.tar*}
 
+ln -s gthr-posix.h libgcc/gthr-default.h
+
 mkdir build
 cd build
 
 ../libstdc++-v3/configure           \
+    CXXFLAGS="-g -O2 -D_GNU_SOURCE" \
     --host=$LFS_TGT                 \
-    --build=$(../config.guess)      \
     --prefix=/usr                   \
     --disable-multilib              \
     --disable-nls                   \
     --disable-libstdcxx-pch         \
-    --with-gxx-include-dir=/tools/$LFS_TGT/include/c++/11.2.0
 
 make
-make DESTDIR=$LFS install
+make install
 
-cd $LFS/sources
+cd /sources
 rm -rf ${PKG_GCC%.tar*}
 

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Stage 3
 # ~~~~~~~
+# This stage covers chapter 5, which builds
+# the 1st pass cross compiler tool chain.
 set -e
 
 if [ "$UID" != "0" ]
@@ -15,10 +17,16 @@ then
     exit -1
 fi
 
-cd $(get_script_dir $BASH_SOURCE)
+if [ -z "$(mount | grep $LFS)" ]
+then
+    echo "ERROR: $LFS_IMG does not appear to be mounted on $LFS."
+    exit -1
+fi
+
+cd $(dirname $0)
 
 su $LFS_USER --shell=/usr/bin/bash --command \
-"source ../config/global.sh "\
-"&& source ../config/user.sh "\
+"source $GLOBAL_CONF "\
+"&& source $USER_CONF "\
 "&& ./lfs_main.sh"
 

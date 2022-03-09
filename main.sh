@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/usr/bin/env bash
 # main.sh
 # ~~~~~~~
 # This is the main entry point for this project.
@@ -10,7 +10,7 @@ then
     exit -1
 fi
 
-cd "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+cd $(dirname $0)
 
 source ./config/global.sh
 
@@ -23,7 +23,7 @@ function build_stage {
     { echo "Stage $STAGE_NO failed." && exit -1; }
 }
 
-for ((STAGE = 1; STAGE < 5; STAGE++))
+for ((STAGE = 1; STAGE < 6; STAGE++))
 do
     build_stage $STAGE
 done
