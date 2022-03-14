@@ -21,7 +21,7 @@ make check
 
 make install
 
-ln -sv flex /usr/bin/lex
+ln -s flex /usr/bin/lex
 
 cd /sources
 rm -rf ${PKG_FLEX%.tar*}

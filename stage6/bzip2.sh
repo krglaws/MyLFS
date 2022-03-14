@@ -18,13 +18,13 @@ make -f Makefile-libbz2_so
 make clean
 make
 make PREFIX=/usr install
-cp -av libbz2.so.* /usr/lib
-ln -sv libbz2.so.1.0.8 /usr/lib/libbz2.so
-cp -v bzip2-shared /usr/bin/bzip2
+cp -a libbz2.so.* /usr/lib
+ln -s libbz2.so.1.0.8 /usr/lib/libbz2.so
+cp bzip2-shared /usr/bin/bzip2
 for i in /usr/bin/{bzcat,bunzip2}; do
-  ln -sfv bzip2 $i
+  ln -sf bzip2 $i
 done
-rm -fv /usr/lib/libbz2.a
+rm -f /usr/lib/libbz2.a
 
 cd /sources
 rm -rf ${PKG_BZIP2%.tar*}
