@@ -19,10 +19,15 @@ cd ${PKG_EUDEV%.tar*}
 
 make
 
-mkdir -pv /usr/lib/udev/rules.d
-mkdir -pv /etc/udev/rules.d
+mkdir -p /usr/lib/udev/rules.d
+mkdir -p /etc/udev/rules.d
 
-make check
+if $RUN_TESTS
+then
+    set +e
+    make check &> $TESTLOG_DIR/eudev.log
+    set -e
+fi
 
 make install
 

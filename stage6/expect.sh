@@ -19,7 +19,12 @@ cd ${PKG_EXPECT%.tar*}
 
 make
 
-make test
+if $RUN_TESTS
+then
+    set +e
+    make test &> $TESTLOG_DIR/expect.log
+    set -e
+fi
 
 make install
 

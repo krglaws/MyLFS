@@ -18,7 +18,12 @@ cd ${PKG_LIBFFI%.tar*}
 
 make
 
-make check
+if $RUN_TESTS
+then
+    set +e
+    make check &> $TESTLOG_DIR/libffi.log
+    set -e
+fi
 
 make install
 

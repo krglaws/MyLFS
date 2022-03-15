@@ -20,13 +20,18 @@ make
 
 chown -R tester .
 
-su -s /usr/bin/expect tester << EOF
-set timeout -1
-spawn make tests
-expect eof
-lassign [wait] _ _ _ value
-exit $value
+if $RUN_TESTS
+then
+    set +e
+su -s /usr/bin/expect tester &> $TESTLOG_DIR/bash.log << EOF
+    set timeout -1
+    spawn make tests
+    expect eof
+    lassign [wait] _ _ _ value
+    exit $value
 EOF
+    set -e
+fi
 
 make install
 

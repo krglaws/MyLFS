@@ -23,7 +23,7 @@ function build_stage {
     { echo "Stage $STAGE_NO failed." && exit -1; }
 }
 
-for ((STAGE = 1; STAGE < 6; STAGE++))
+for ((STAGE = 1; STAGE <= 6; STAGE++))
 do
     build_stage $STAGE
 done

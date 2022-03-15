@@ -18,8 +18,13 @@ esac
 
 make
 
-chown -Rv tester .
-su tester -c "PATH=$PATH make check"
+if $RUN_TESTS
+then
+    set +e
+    chown -R tester .
+    su tester -c "PATH=$PATH make check" &> $TESTLOG_DIR/findutils.log
+    set -e
+fi
 
 make install
 

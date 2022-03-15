@@ -13,7 +13,14 @@ cd ${PKG_LIBCAP%.tar*}
 
 sed -i '/install -m.*STA/d' libcap/Makefile
 make prefix=/usr lib=lib
-make test
+
+if $RUN_TESTS
+then
+    set +e
+    make test &> $TESTLOG_DIR/libcap.log
+    set -e
+fi
+
 make prefix=/usr lib=lib install
 
 cd /sources

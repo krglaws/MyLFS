@@ -37,7 +37,12 @@ sed -e "s|$SRCDIR/unix/pkgs/itcl4.2.2|/usr/lib/itcl4.2.2|" \
 
 unset SRCDIR
 
-make test
+if $RUN_TESTS
+then
+    set +e
+    make test &> $TESTLOG_DIR/tcl.log
+    set -e
+fi
 
 make install
 

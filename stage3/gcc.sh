@@ -1,4 +1,4 @@
-#/usr/bin/env bash
+#!/usr/bin/env bash
 # GCC Stage 3
 # ~~~~~~~~~~~
 set -e

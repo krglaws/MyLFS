@@ -34,7 +34,12 @@ sh Configure -des                                         \
 
 make
 
-make test
+if $RUN_TESTS
+then
+    set +e
+    make test &> $TESTLOG_DIR/perl.log
+    set -e
+fi
 
 make install
 

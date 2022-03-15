@@ -16,8 +16,13 @@ cd ${PKG_SED%.tar*}
 make
 make html
 
-chown -R tester .
-su tester -c "PATH=$PATH make check"
+if $RUN_TESTS
+then
+    set +e
+    chown -R tester .
+    su tester -c "PATH=$PATH make check" &> $TESTLOG_DIR/sed.log
+    set -e
+fi
 
 make install
 install -d -m755 /usr/share/doc/sed-4.8

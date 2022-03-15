@@ -18,7 +18,12 @@ sed -e 's/__attribute_nonnull__/__nonnull/' \
 
 make
 
-make check
+if $RUN_TESTS
+then
+    set +e
+    make check &> $TESTLOG_DIR/texinfo.log
+    set -e
+fi
 
 make install
 

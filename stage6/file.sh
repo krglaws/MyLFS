@@ -14,7 +14,14 @@ cd ${PKG_FILE%.tar*}
 ./configure --prefix=/usr
 
 make
-make check
+
+if $RUN_TESTS
+then
+    set +e
+    make check &> $TESTLOG_DIR/file.log
+    set -e
+fi
+
 make install
 
 cd /sources

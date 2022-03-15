@@ -21,7 +21,12 @@ sed -i 's/resizecons.8 //' docs/man/man8/Makefile.in
 
 make
 
-make check
+if $RUN_TESTS
+then
+    set +e
+    make check &> $TESTLOG_DIR/kbd.log
+    set -e
+fi
 
 make install
 

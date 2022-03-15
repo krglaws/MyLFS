@@ -15,7 +15,12 @@ cd ${PKG_CHECK%.tar*}
 
 make
 
-make check
+if $RUN_TESTS
+then
+    set +e
+    make check &> $TESTLOG_DIR/check.log
+    set -e
+fi
 
 make docdir=/usr/share/doc/check-0.15.2 install
 

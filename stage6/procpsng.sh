@@ -18,7 +18,12 @@ cd ${PKG_PROCPS%.tar*}
 
 make
 
-make check
+if $RUN_TESTS
+then
+    set +e
+    make check &> $TESTLOG_DIR/procpsng.log
+    set -e
+fi
 
 make install
 

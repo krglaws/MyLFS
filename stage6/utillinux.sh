@@ -30,8 +30,13 @@ cd ${PKG_UTILLINUX%.tar*}
 
 make
 
-chown -Rv tester .
-su tester -c "make -k check"
+if $RUN_TESTS
+then
+    set +e
+    chown -Rv tester .
+    su tester -c "make -k check" &> $TESTLOG_DIR/utillinux.log
+    set -e
+fi
 
 make install
 

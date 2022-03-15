@@ -15,7 +15,12 @@ cd ${PKG_LIBPIPELINE%.tar*}
 
 make
 
-make check
+if $RUN_TESTS
+then
+    set +e
+    make check &> $TESTLOG_DIR/libpipeline.sh
+    set -e
+fi
 
 make install
 

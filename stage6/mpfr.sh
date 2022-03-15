@@ -19,7 +19,12 @@ cd ${PKG_MPFR%.tar*}
 make
 make html
 
-make check
+if $RUN_TESTS
+then
+    set +e
+    make check &> $TESTLOG_DIR/mpfr.log
+    set -e
+fi
 
 make install
 make install-html

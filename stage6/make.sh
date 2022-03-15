@@ -15,7 +15,12 @@ cd ${PKG_MAKE%.tar*}
 
 make
 
-make check
+if $RUN_TESTS
+then
+    set +e
+    make check &> $TESTLOG_DIR/make.log
+    set -e
+fi
 
 make install
 

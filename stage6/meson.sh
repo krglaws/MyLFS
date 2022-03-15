@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Coreutils Stage 6
-# ~~~~~~~~~~~~~~~~~
+# Meson Stage 6
+# ~~~~~~~~~~~~~
 set -e
 
 cd /sources

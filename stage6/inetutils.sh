@@ -24,7 +24,12 @@ cd ${PKG_INETUTILS%.tar*}
 
 make
 
-make check
+if $RUN_TESTS
+then
+    set +e
+    make check &> $TESTLOG_DIR/inetutils.log
+    set -e
+fi
 
 make install
 

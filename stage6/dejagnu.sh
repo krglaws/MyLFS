@@ -22,7 +22,12 @@ make install
 install -dm755  /usr/share/doc/dejagnu-1.6.3
 install -m644   doc/dejagnu.{html,txt} /usr/share/doc/dejagnu-1.6.3
 
-make check
+if $RUN_TESTS
+then
+    set +e
+    make check &> $TESTLOG_DIR/dejagnu.log
+    set -e
+fi
 
 cd /sources
 rm -rf ${PKG_DEJAGNU%.tar*}

@@ -20,12 +20,17 @@ sed -i '/int Guess/a \
 
 python3 configure.py --bootstrap
 
-./ninja ninja_test
-./ninja_test --gtest_filter=-SubprocessTest.SetWithLots
+if $RUN_TESTS
+then
+    set +e
+    ./ninja ninja_test
+    ./ninja_test --gtest_filter=-SubprocessTest.SetWithLots &> $TESTLOG_DIR/ninja.log
+    set -e
+fi
 
-install -vm755 ninja /usr/bin/
-install -vDm644 misc/bash-completion /usr/share/bash-completion/completions/ninja
-install -vDm644 misc/zsh-completion  /usr/share/zsh/site-functions/_ninja
+install -m755 ninja /usr/bin/
+install -Dm644 misc/bash-completion /usr/share/bash-completion/completions/ninja
+install -Dm644 misc/zsh-completion  /usr/share/zsh/site-functions/_ninja
 
 cd /sources
 rm -rf ${PKG_NINJA%.tar*}

@@ -26,7 +26,13 @@ echo "rootsbindir=/usr/sbin" > configparms
              libc_cv_slibdir=/usr/lib
 
 make
-make check
+
+if $RUN_TESTS
+then
+    set +e
+    make check &> $TESTLOG_DIR/glibc.log
+    set -e
+fi
 
 touch /etc/ld.so.conf
 sed '/test-installation/s@$(PERL)@echo not running@' -i ../Makefile

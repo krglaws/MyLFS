@@ -17,7 +17,12 @@ cd ${PKG_GETTEXT%.tar*}
 
 make
 
-make check
+if $RUN_TESTS
+then
+    set +e
+    make check &> $TESTLOG_DIG/gettext.log
+    set -e
+fi
 
 make install
 chmod 0755 /usr/lib/preloadable_libint1.so

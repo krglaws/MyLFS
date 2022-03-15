@@ -15,7 +15,12 @@ cd ${PKG_BISON%.tar*}
 
 make
 
-make check
+if $RUN_TESTS
+then
+    set +e
+    make check &> $TESTLOG_DIR/bison.log
+    set -e
+fi
 
 make install
 

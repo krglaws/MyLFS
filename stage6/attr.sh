@@ -17,7 +17,13 @@ cd ${PKG_ATTR%.tar*}
             --docdir=/usr/share/doc/attr-2.5.1
 
 make
-make check
+
+if $RUN_TESTS
+then
+    set +e
+    make check &> $TESTLOG_DIR/attr.log
+    set -e
+fi
 
 make install
 

@@ -30,7 +30,12 @@ cd build
 
 make tooldir=/usr
 
-make -k check
+if $RUN_TESTS
+then
+    set +e
+    make -k check &> $TESTLOG_DIR/binutils.log
+    set -e
+fi
 
 make tooldir=/usr install
 

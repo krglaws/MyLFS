@@ -15,7 +15,12 @@ cd ${PKG_GREP%.tar*}
 
 make
 
-make check
+if $RUN_TESTS
+then
+    set +e
+    make check &> $TESTLOG_DIR/grep.log
+    set -e
+fi
 
 make install
 

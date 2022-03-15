@@ -17,7 +17,12 @@ sed -i 's:\\\${:\\\$\\{:' intltool-update.in
 
 make
 
-make check
+if $RUN_TESTS
+then
+    set +e
+    make check &> $TESTLOG_DIR/intltool.log
+    set -e
+fi
 
 make install
 install -Dm644 doc/I18N-HOWTO /usr/share/doc/intltool-0.51.0/I18N-HOWTO

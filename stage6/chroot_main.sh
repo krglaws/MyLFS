@@ -21,7 +21,7 @@ function build_package {
 
 cd /sources/stage6
 
-build_package "Man Pages" ./man.sh /sources/man_stage6.log
+build_package "Man Pages" ./manpages.sh /sources/manpages_stage6.log
 build_package "Iana-Etc" ./ianaetc.sh /sources/ianaetc_stage6.log
 build_package "Glibc" ./glibc.sh /sources/glibc_stage6.log
 build_package "Zlib" ./zlib.sh /sources/zlib_stage6.log
@@ -30,8 +30,8 @@ build_package "Xz" ./xz.sh /sources/xz_stage6.log
 build_package "Zstd" ./zstd.sh /sources/zstd_stage6.log
 build_package "File" ./file.sh /sources/file_stage6.log
 build_package "Readline" ./readline.sh /sources/readline_stage6.log
-build_package "M4" ./M4.sh /sources/m4_stage6.log
-build_package "Bc" ./Bc.sh /sources/bc_stage6.log
+build_package "M4" ./m4.sh /sources/m4_stage6.log
+build_package "Bc" ./bc.sh /sources/bc_stage6.log
 build_package "Flex" ./flex.sh /sources/flex_stage6.log
 build_package "Tcl" ./tcl.sh /sources/tcl_stage6.log
 build_package "Expect" ./expect.sh /sources/expect_stage6.log

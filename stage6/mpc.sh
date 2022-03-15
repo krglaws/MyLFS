@@ -18,7 +18,12 @@ cd ${PKG_MPC%.tar*}
 make
 make html
 
-make check
+if $RUN_TESTS
+then
+    set +e
+    make check &> $TESTLOG_DIR/mpc.log
+    set -e
+fi
 
 make install
 make install-html

@@ -19,7 +19,12 @@ cd ${PKG_OPENSSL%.tar*}
 
 make
 
-make test
+if $RUN_TESTS
+then
+    set +e
+    make test &> $TESTLOG_DIR/openssl.log
+    set -e
+fi
 
 sed -i '/INSTALL_LIBS/s/libcrypto.a libssl.a//' Makefile
 make MANSUFFIX=ssl install

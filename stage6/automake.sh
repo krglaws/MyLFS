@@ -15,7 +15,12 @@ cd ${PKG_AUTOMAKE%.tar*}
 
 make
 
-make -j4 check
+if $RUN_TESTS
+then
+    set +e
+    make -j4 check &> TESTLOG_DIR/automake.log
+    set -e
+fi
 
 make install
 

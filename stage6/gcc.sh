@@ -23,14 +23,20 @@ case $(uname -m) in
 esac
 
 mkdir build
-cd       build
+cd build
 
 make
 
 ulimit -s 32768
 
-chown -R tester .
-su tester -c "PATH=$PATH make -k check"
+
+if $RUN_TESTS
+then
+    set +e
+    chown -R tester .
+    su tester -c "PATH=$PATH make -k check" &> $TESTLOG_DIR/gcc.log
+    set -e
+fi
 
 make install
 rm -rf /usr/lib/gcc/$(gcc -dumpmachine)/11.2.0/include-fixed/bits/

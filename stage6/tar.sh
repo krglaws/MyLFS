@@ -16,7 +16,12 @@ FORCE_UNSAFE_CONFIGURE=1  \
 
 make
 
-make check
+if $RUN_TESTS
+then
+    set +e
+    make check &> $TESTLOG_DIR/tar.log
+    set -e
+fi
 
 make install
 

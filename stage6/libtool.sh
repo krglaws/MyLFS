@@ -15,7 +15,12 @@ cd ${PKG_LIBTOOL%.tar*}
 
 make
 
-make check TESTSUITEFLAGS=-j4
+if $RUN_TESTS
+then
+    set +e
+    make check TESTSUITEFLAGS=-j4 &> $TESTLOG_DIR/libtool.log
+    set -e
+fi
 
 make install
 

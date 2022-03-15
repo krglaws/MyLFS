@@ -17,7 +17,12 @@ cd ${PKG_GDBM%.tar*}
 
 make
 
-make check
+if $RUN_TESTS
+then
+    set +e
+    make check &> $TESTLOG_DIR/gdbm.log
+    set -e
+fi
 
 make install
 

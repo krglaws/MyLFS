@@ -17,7 +17,12 @@ cd ${PKG_ELFUTILS%.tar*}
 
 make
 
-make check
+if $RUN_TESTS
+then
+    set +e
+    make check &> $TESTLOG_DIR/elfutils.log
+    set -e
+fi
 
 make -C libelf install
 install -m644 config/libelf.pc /usr/lib/pkgconfig

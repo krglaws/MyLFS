@@ -14,7 +14,14 @@ cd ${PKG_M4%.tar*}
 ./configure --prefix=/usr
 
 make
-make check
+
+if $RUN_TESTS
+then
+    set +e
+    make check &> $TESTLOG_DIR/m4.log
+    set -e
+fi
+
 make install
 
 cd /sources

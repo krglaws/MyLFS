@@ -15,7 +15,12 @@ cd ${PKG_GPERF%.tar*}
 
 make
 
-make -j1 check
+if $RUN_TESTS
+then
+    set +e
+    make -j1 check &> $TESTLOG_DIR/gperf.log
+    set -e
+fi
 
 make install
 

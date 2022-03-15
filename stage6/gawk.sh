@@ -17,12 +17,17 @@ sed -i 's/extras//' Makefile.in
 
 make
 
-make check
+if $RUN_TESTS
+then
+    set +e
+    make check &> $TESTLOG_DIR/gawk.log
+    set -e
+fi
 
 make install
 
-mkdir -pv                                   /usr/share/doc/gawk-5.1.1
-cp    -v doc/{awkforai.txt,*.{eps,pdf,jpg}} /usr/share/doc/gawk-5.1.1
+mkdir -p /usr/share/doc/gawk-5.1.1
+cp doc/{awkforai.txt,*.{eps,pdf,jpg}} /usr/share/doc/gawk-5.1.1
 
 cd /sources
 rm -rf ${PKG_GAWK%.tar*}

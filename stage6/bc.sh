@@ -15,7 +15,12 @@ CC=gcc ./configure --prefix=/usr -G -O3
 
 make
 
-make test
+if $RUN_TESTS
+then
+    set +e
+    make test &> $TESTLOG_DIR/bc.log
+    set -e
+fi
 
 make install
 

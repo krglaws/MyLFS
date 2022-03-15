@@ -18,7 +18,13 @@ cd ${PKG_GMP%.tar*}
 
 make
 make html
-make check &> /sources/stage6/gmp_test.log
+
+if $RUN_TESTS
+then
+    set +e
+    make check &> $TESTLOG_DIR/gmp_test.log
+    set -e
+fi
 
 PASS_COUNT=$(awk '/# PASS:/{total+=$3} ; END{print total}' /sources/stage6/gmp_test.log)
 if [ "$PASS_COUNT" != "" ];
