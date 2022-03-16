@@ -25,7 +25,7 @@ then
 fi
 
 make install
-chmod 0755 /usr/lib/preloadable_libint1.so
+chmod 0755 /usr/lib/preloadable_libintl.so
 
 cd /sources
 rm -rf ${PKG_GETTEXT%.tar*}

@@ -59,3 +59,5 @@ chroot "$LFS" /usr/bin/env -i               \
     PACKAGE_LIST=/sources/stage5/pkgs.sh    \
     /bin/bash +h -c "/sources/stage5/chroot_main.sh"
 
+rm -r $LFS/sources/stage5
+

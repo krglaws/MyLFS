@@ -19,6 +19,8 @@ function build_package {
     fi
 }
 
+mkdir -p $TESTLOG_DIR
+
 cd /sources/stage6
 
 build_package "Man Pages" ./manpages.sh /sources/manpages_stage6.log
@@ -89,7 +91,7 @@ build_package "Texinfo" ./texinfo.sh /sources/texinfo_stage6.log
 build_package "Vim" ./vim.sh /sources/vim_stage6.log
 build_package "Eudev" ./eudev.sh /sources/eudev_stage6.log
 build_package "Man-DB" ./mandb.sh /sources/mandb_stage6.log
-build_package "Procps-ng" ./procpsng.sh /sources/procpsng_stage6.log
+build_package "Procps" ./procps.sh /sources/procps_stage6.log
 build_package "Util-linux" ./utillinux.sh /sources/utillinux_stage6.log
 build_package "E2fsprogs" ./e2fsprogs.sh /sources/e2fsprogs_stage6.log
 build_package "Sysklogd" ./sysklogd.sh /sources/sysklogd_stage6.log
@@ -105,5 +107,5 @@ find /usr/lib /usr/libexec -name \*.la -delete
 find /usr -depth -name $LFS_TGT\* | xargs rm -rf
 
 # remove 'tester' user account
-userdel -r tester
+userdel -rf tester
 

@@ -36,10 +36,7 @@ grpconv
 mkdir -p /etc/default
 useradd -D --gid 999
 
-passwd root <<EOF
-$ROOT_PASSWD
-$ROOT_PASSWD
-EOF
+chpasswd "root:$ROOT_PASSWD"
 
 cd /sources
 rm -rf ${PKG_SHADOW%.tar*}

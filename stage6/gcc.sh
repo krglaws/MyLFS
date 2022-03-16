@@ -25,13 +25,20 @@ esac
 mkdir build
 cd build
 
+../configure --prefix=/usr            \
+             LD=ld                    \
+             --enable-languages=c,c++ \
+             --disable-multilib       \
+             --disable-bootstrap      \
+             --with-system-zlib
+
 make
 
 ulimit -s 32768
 
-
 if $RUN_TESTS
 then
+    echo "seems like RUN_TESTS is 'true'"
     set +e
     chown -R tester .
     su tester -c "PATH=$PATH make -k check" &> $TESTLOG_DIR/gcc.log

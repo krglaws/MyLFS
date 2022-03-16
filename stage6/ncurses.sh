@@ -38,7 +38,7 @@ echo "INPUT(-lncursesw)" > /usr/lib/libcursesw.so
 ln -sf libncurses.so      /usr/lib/libcurses.so
 
 mkdir -p      /usr/share/doc/ncurses-6.3
-cp -R doc/* /usr/share/doc/ncurses-6.3i
+cp -R doc/* /usr/share/doc/ncurses-6.3
 
 cd /sources
 rm -rf ${PKG_NCURSES%.tar*}

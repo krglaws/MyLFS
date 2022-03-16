@@ -9,9 +9,9 @@ eval "$(grep TCL $PACKAGE_LIST)"
 PKG_TCL=$(basename $PKG_TCL)
 
 tar -xf $PKG_TCL
-cd ${PKG_TCL%.tar*}
+cd ${PKG_TCL%-src.tar*}
 
-tar -xf ../tcl8.6.12-html.tar.gz --strip-components=1
+tar -xf ../$(basename $PKG_TCLDOCS) --strip-components=1
 SRCDIR=$(pwd)
 cd unix
 ./configure --prefix=/usr           \
@@ -58,5 +58,5 @@ mkdir -p /usr/share/doc/tcl-8.6.12
 cp -r  ../html/* /usr/share/doc/tcl-8.6.12
 
 cd /sources
-rm -rf ${PKG_TCL%.tar*}
+rm -rf ${PKG_TCL%-src.tar*}
 

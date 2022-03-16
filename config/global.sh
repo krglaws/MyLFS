@@ -16,7 +16,7 @@ export LFS_IMG=$MAIN_DIR/lfs.img
 export LFS_IMG_SIZE=$((10*1024*1024*1024)) # 10 GiB
 export LFS_USER=lfs
 export ROOT_PASSWD=password
-export RUN_TESTS=true
+export RUN_TESTS=false
 export TESTLOG_DIR=/sources/tests
 
 KEYS="CONF_DIR MAIN_DIR GLOBAL_CONF USER_CONF MAKEFLAGS PACKAGE_LIST"\

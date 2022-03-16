@@ -40,5 +40,8 @@ chroot "$LFS" /usr/bin/env -i               \
     PATH=/usr/bin:/usr/sbin                 \
     LFS_TGT=$LFS_TGT                        \
     PACKAGE_LIST=/sources/stage6/pkgs.sh    \
+    RUN_TESTS=$RUN_TESTS                    \
+    TESTLOG_DIR=$TESTLOG_DIR                \
+    ROOT_PASSWD=$ROOT_PASSWD                \
     /bin/bash +h -c "/sources/stage6/chroot_main.sh"
 

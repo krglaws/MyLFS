@@ -36,5 +36,5 @@ make install
 mv /usr/{,s}bin/ifconfig
 
 cd /sources
-rm -rf ${PKG_BC%.tar*}
+rm -rf ${PKG_INETUTILS%.tar*}
 

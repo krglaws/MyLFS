@@ -7,16 +7,17 @@ cd /sources
 
 eval "$(grep BINUTILS $PACKAGE_LIST)"
 PKG_BINUTILS=$(basename $PKG_BINUTILS)
+PATCH_BINUTILS=$(basename $PATCH_BINUTILS)
 
 tar -xf $PKG_BINUTILS
 cd ${PKG_BINUTILS%.tar*}
 
-patch -Np1 -i ../binutils-2.38-lto_fix-1.patch
+patch -Np1 -i ../$PATCH_BINUTILS
 
 sed -e '/R_386_TLS_LE /i \   || (TYPE) == R_386_TLS_IE \\' \
     -i ./bfd/elfxx-x86.h
 
-make build
+mkdir build
 cd build
 
 ../configure --prefix=/usr       \
