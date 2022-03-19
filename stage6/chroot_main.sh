@@ -96,6 +96,7 @@ build_package "Util-linux" ./utillinux.sh /sources/utillinux_stage6.log
 build_package "E2fsprogs" ./e2fsprogs.sh /sources/e2fsprogs_stage6.log
 build_package "Sysklogd" ./sysklogd.sh /sources/sysklogd_stage6.log
 build_package "Sysvinit" ./sysvinit.sh /sources/sysvinit_stage6.log
+build_package "LFS Boot Scripts" ./lfsbootscripts.sh /sources/lfsbootscripts_stage6.log
 
 # delete temp files leftover from tests
 rm -rf /tmp/*
@@ -107,5 +108,5 @@ find /usr/lib /usr/libexec -name \*.la -delete
 find /usr -depth -name $LFS_TGT\* | xargs rm -rf
 
 # remove 'tester' user account
-userdel -rf tester
+userdel -r tester
 
