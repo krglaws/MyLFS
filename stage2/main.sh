@@ -57,6 +57,7 @@ mkdir -p $LFS/var/{cache,local,log,mail,opt,spool}
 mkdir -p $LFS/var/lib/{color,misc,locate}
 mkdir -p $LFS/{dev,proc,sys,run}
 mkdir -p $LFS/home/tester
+mkdir -p $LFS/var/mail/tester
 
 echo $HOSTNAME > $LFS/etc/hostname
 
