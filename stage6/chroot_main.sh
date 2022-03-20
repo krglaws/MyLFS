@@ -7,9 +7,9 @@ echo "done."
 # This is copied from config/user.sh since I'm too lazy to
 # figure out a way to pass it into the chroot environment.
 function build_package {
-    PACKAGE_NAME=$1
-    BUILD_SCRIPT=$2
-    BUILD_LOG=$3
+    BUILD_SCRIPT=$1
+    PACKAGE_NAME=${BUILD_SCRIPT%.sh}
+    BUILD_LOG=/sources/${PACKAGE_NAME}_stage6.log
 
     echo -n "Building ${PACKAGE_NAME}... "
     if ! { $BUILD_SCRIPT &> $BUILD_LOG && rm $BUILD_LOG && echo "done."; }
@@ -23,80 +23,87 @@ mkdir -p $TESTLOG_DIR
 
 cd /sources/stage6
 
-build_package "Man Pages" ./manpages.sh /sources/manpages_stage6.log
-build_package "Iana-Etc" ./ianaetc.sh /sources/ianaetc_stage6.log
-build_package "Glibc" ./glibc.sh /sources/glibc_stage6.log
-build_package "Zlib" ./zlib.sh /sources/zlib_stage6.log
-build_package "Bzip2" ./bzip2.sh /sources/bzip2_stage6.log
-build_package "Xz" ./xz.sh /sources/xz_stage6.log
-build_package "Zstd" ./zstd.sh /sources/zstd_stage6.log
-build_package "File" ./file.sh /sources/file_stage6.log
-build_package "Readline" ./readline.sh /sources/readline_stage6.log
-build_package "M4" ./m4.sh /sources/m4_stage6.log
-build_package "Bc" ./bc.sh /sources/bc_stage6.log
-build_package "Flex" ./flex.sh /sources/flex_stage6.log
-build_package "Tcl" ./tcl.sh /sources/tcl_stage6.log
-build_package "Expect" ./expect.sh /sources/expect_stage6.log
-build_package "DejaGNU" ./dejagnu.sh /sources/dejagnu_stage6.log
-build_package "Binutils" ./binutils.sh /sources/binutils_stage6.log
-build_package "GMP" ./gmp.sh /sources/gmp_stage6.log
-build_package "MPFR" ./mpfr.sh /sources/mpfr_stage6.log
-build_package "MPC" ./mpc.sh /sources/mpc_stage6.log
-build_package "Attr" ./attr.sh /sources/attr_stage6.log
-build_package "Acl" ./acl.sh /sources/acl_stage6.log
-build_package "Libcap" ./libcap.sh /sources/libcap_stage6.log
-build_package "Shadow" ./shadow.sh /sources/shadow_stage6.log
-build_package "GCC" ./gcc.sh /sources/gcc_stage6.log
-build_package "Pkg-config" ./pkgconfig.sh /sources/pkgconfig_stage6.log
-build_package "Ncurses" ./ncurses.sh /sources/ncurses_stage6.log
-build_package "Sed" ./sed.sh /sources/sed_stage6.log
-build_package "Psmisc" ./psmisc.sh /sources/psmisc_stage6.log
-build_package "Gettext" ./gettext.sh /sources/gettext_stage6.log
-build_package "Bison" ./bison.sh /sources/bison_stage6.log
-build_package "Grep" ./grep.sh /sources/grep_stage6.log
-build_package "Bash" ./bash.sh /sources/bash_stage6.log
-build_package "Libtool" ./libtool.sh /sources/libtool_stage6.log
-build_package "GDBM" ./gdbm.sh /sources/gdbm_stage6.log
-build_package "Gperf" ./gperf.sh /sources/gperf_stage6.log
-build_package "Expat" ./expat.sh /sources/expat_stage6.log
-build_package "Inetutils" ./inetutils.sh /sources/inetutils_stage6.log
-build_package "Less" ./less.sh /sources/less_stage6.log
-build_package "Perl" ./perl.sh /sources/perl_stage6.log
-build_package "XML::Parser" ./xmlparser.sh /sources/xmlparser_stage6.log
-build_package "Intltool" ./intltool.sh /sources/intltool_stage6.log
-build_package "Autoconf" ./autoconf.sh /sources/autoconf_stage6.log
-build_package "Automake" ./automake.sh /sources/automake_stage6.log
-build_package "OpenSSL" ./openssl.sh /sources/openssl_stage6.log
-build_package "Kmod" ./kmod.sh /sources/kmod_stage6.log
-build_package "Elfutils" ./elfutils.sh /sources/elfutils_stage6.log
-build_package "Libffi" ./libffi.sh /sources/libffi_stage6.log
-build_package "Python" ./python.sh /sources/python_stage6.log
-build_package "Ninja" ./ninja.sh /sources/ninja_stage6.log
-build_package "Meson" ./meson.sh /sources/meson_stage6.log
-build_package "Coreutils" ./coreutils.sh /sources/coreutils_stage6.log
-build_package "Check" ./check.sh /sources/check_stage6.log
-build_package "Diffutils" ./diffutils.sh /sources/diffutils_stage6.log
-build_package "Gawk" ./gawk.sh /sources/gawk_stage6.log
-build_package "Findutils" ./findutils.sh /sources/findutils_stage6.log
-build_package "Groff" ./groff.sh /sources/groff_stage6.log
+build_package ./manpages.sh
+build_package ./ianaetc.sh
+build_package ./glibc.sh
+build_package ./zlib.sh
+build_package ./bzip2.sh
+build_package ./xz.sh
+build_package ./zstd.sh
+build_package ./file.sh
+build_package ./readline.sh
+build_package ./m4.sh
+build_package ./bc.sh
+build_package ./flex.sh
+build_package ./tcl.sh
+build_package ./expect.sh
+build_package ./dejagnu.sh
+build_package ./binutils.sh
+build_package ./gmp.sh
+build_package ./mpfr.sh
+build_package ./mpc.sh
+build_package ./attr.sh
+build_package ./acl.sh
+build_package ./libcap.sh
+build_package ./shadow.sh
+build_package ./gcc.sh
+build_package ./pkgconfig.sh
+build_package ./ncurses.sh
+build_package ./sed.sh
+build_package ./psmisc.sh
+build_package ./gettext.sh
+build_package ./bison.sh
+build_package ./grep.sh
+build_package ./bash.sh
+build_package ./libtool.sh
+build_package ./gdbm.sh
+build_package ./gperf.sh
+build_package ./expat.sh
+build_package ./inetutils.sh
+build_package ./less.sh
+build_package ./perl.sh
+build_package ./xmlparser.sh
+build_package ./intltool.sh
+build_package ./autoconf.sh
+build_package ./automake.sh
+build_package ./openssl.sh
+build_package ./kmod.sh
+build_package ./elfutils.sh
+build_package ./libffi.sh
+build_package ./python.sh
+build_package ./ninja.sh
+build_package ./meson.sh
+build_package ./coreutils.sh
+build_package ./check.sh
+build_package ./diffutils.sh
+build_package ./gawk.sh
+build_package ./findutils.sh
+build_package ./groff.sh
 # Skipping GRUB MBR build since we are using UEFI
-build_package "Gzip" ./gzip.sh /sources/gzip_stage6.log
-build_package "IPRoute2" ./iproute2.sh /sources/iproute2_stage6.log
-build_package "Kbd" ./kbd.sh /sources/kbd_stage6.log
-build_package "Libpipeline" ./libpipeline.sh /sources/libpipeline_stage6.log
-build_package "Make" ./make.sh /sources/make_stage6.log
-build_package "Patch" ./patch.sh /sources/patch_stage6.log
-build_package "Tar" ./tar.sh /sources/tar_stage6.log
-build_package "Texinfo" ./texinfo.sh /sources/texinfo_stage6.log
-build_package "Vim" ./vim.sh /sources/vim_stage6.log
-build_package "Eudev" ./eudev.sh /sources/eudev_stage6.log
-build_package "Man-DB" ./mandb.sh /sources/mandb_stage6.log
-build_package "Procps" ./procps.sh /sources/procps_stage6.log
-build_package "Util-linux" ./utillinux.sh /sources/utillinux_stage6.log
-build_package "E2fsprogs" ./e2fsprogs.sh /sources/e2fsprogs_stage6.log
-build_package "Sysklogd" ./sysklogd.sh /sources/sysklogd_stage6.log
-build_package "Sysvinit" ./sysvinit.sh /sources/sysvinit_stage6.log
-build_package "LFS Boot Scripts" ./lfsbootscripts.sh /sources/lfsbootscripts_stage6.log
+build_package ./gzip.sh
+build_package ./iproute2.sh
+build_package ./kbd.sh
+build_package ./libpipeline.sh
+build_package ./make.sh
+build_package ./patch.sh
+build_package ./tar.sh
+build_package ./texinfo.sh
+build_package ./vim.sh
+build_package ./eudev.sh
+build_package ./mandb.sh
+build_package ./procps.sh
+build_package ./utillinux.sh
+build_package ./e2fsprogs.sh
+build_package ./sysklogd.sh
+build_package ./sysvinit.sh
+build_package ./lfsbootscripts.sh
+
+# UEFI Boot Dependencies
+build_pakcage ./popt.sh
+build_package ./mandoc.sh
+build_package ./efivar.sh
+build_package ./efibootmgr.sh
+build_package ./grub.sh
 
 # delete temp files leftover from tests
 rm -rf /tmp/*

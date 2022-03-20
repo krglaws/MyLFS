@@ -44,8 +44,8 @@ case $(uname -m) in
 esac
 
 mkdir -p $LFS/tools
-mkdir -p $LFS/{boot,home,mnt,opt,srv}
-mkdir -p $LFS/etc/{opt,sysconfig}
+mkdir -p $LFS/{boot/{,grub},home,mnt,opt,srv}
+mkdir -p $LFS/etc/{opt,sysconfig,modprobe.d}
 mkdir -p $LFS/lib/firmware
 mkdir -p $LFS/media/{floppy,cdrom}
 mkdir -p $LFS/usr/{,local/}{include,src}
@@ -71,10 +71,14 @@ ff02::1 ip6-allnodes
 ff02::2 ip6-allrouters
 EOF
 
+cp ./usb.conf $LFS/etc/modprobe.d
+cp ./config-5.16.9 $LFS/boot/
+cp ./grub.cfg $LFS/boot/grub/
 cp ./inittab ./inputrc ./shells $LFS/etc/
-cp ./rc.site $LFS/etc/sysconfig
+cp ./rc.site $LFS/etc/sysconfig/
 
-cat ./fstab | sed "s/LFSUUID/$LFSUUID/;s/FSTYPE/$FSTYPE/" > $LFS/etc/fstab
+cat ./fstab | sed "s/LFSROOTLABEL/$LFSROOTLABEL/;s/LFSFSTYPE/$LFSFSTYPE/;s/LFSEFILABEL/$LFSEFILABEL/" > $LFS/etc/fstab
+cat ./grub.cfg | sed "s/LFSROOTLABEL/$LFSROOTLABEL/" > $LFS/boot/grub/grub.cfg
 
 mknod -m 600 $LFS/dev/console c 5 1
 mknod -m 666 $LFS/dev/null c 1 3
