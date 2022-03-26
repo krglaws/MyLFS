@@ -9,10 +9,8 @@ then
     exit -1
 fi
 
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
-source $SCRIPT_DIR/config/global.sh
-
-echo "Cleaning LFS image..."
+cd $(dirname $0)
+source ./config.sh
 
 # unmount $LFS
 if [ -n "$(mount | grep $LFS)" ]
@@ -32,10 +30,14 @@ fi
 if [ -f $LFS_IMG ]
 then
     read -p "WARNING: This will delete ${LFS_IMG}. Continue? (Y/N): " CONFIRM
-    [[ $CONFIRM == [yY] || $CONFIRM == [yY][eE][sS] ]] || exit
+    [[ $CONFIRM == [yY] || $CONFIRM == [yY][eE][sS] ]] || { echo "Cancelled." && exit -1; }
     echo "Deleting ${LFS_IMG}..."
     rm $LFS_IMG
 fi
 
-echo "Done."
+# delete logs
+if [ -n "$(ls ./logs)" ]
+then
+    rm -rf ./logs/*log ./logs/*gz
+fi
 
