@@ -1,16 +1,4 @@
-#!/usr/bin/env bash
-# Attr Stage 6
-# ~~~~~~~~~~~~
-set -e
-
-cd /sources
-
-eval "$(grep ATTR $PACKAGE_LIST)"
-PKG_ATTR=$(basename $PKG_ATTR)
-
-tar -xf $PKG_ATTR
-cd ${PKG_ATTR%.tar*}
-
+# Attr Phase 4
 ./configure --prefix=/usr     \
             --disable-static  \
             --sysconfdir=/etc \
@@ -21,12 +9,9 @@ make
 if $RUN_TESTS
 then
     set +e
-    make check &> $TESTLOG_DIR/attr.log
+    make check
     set -e
 fi
 
 make install
-
-cd /sources
-rm -rf ${PKG_ATTR%.tar*}
 

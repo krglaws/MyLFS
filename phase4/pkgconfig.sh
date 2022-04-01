@@ -1,16 +1,4 @@
-#!/usr/bin/env bash
-# Pkg-config Stage 6
-# ~~~~~~~~~~~~~~~~~~
-set -e
-
-cd /sources
-
-eval "$(grep PKGCONFIG $PACKAGE_LIST)"
-PKG_PKGCONFIG=$(basename $PKG_PKGCONFIG)
-
-tar -xf $PKG_PKGCONFIG
-cd ${PKG_PKGCONFIG%.tar*}
-
+# Pkg-config Phase 4
 ./configure --prefix=/usr              \
             --with-internal-glib       \
             --disable-host-tool        \
@@ -21,12 +9,9 @@ make
 if $RUN_TESTS
 then
     set +e
-    make check &> $TESTLOG_DIR/pkgconfig.log
+    make check
     set -e
 fi
 
 make install
-
-cd /sources
-rm -rf ${PKG_PKGCONFIG%.tar*}
 

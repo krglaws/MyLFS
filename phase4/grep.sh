@@ -1,16 +1,4 @@
-#!/usr/bin/env bash
-# Grep Stage 6
-# ~~~~~~~~~~~~
-set -e
-
-cd /sources
-
-eval "$(grep GREP $PACKAGE_LIST)"
-PKG_GREP=$(basename $PKG_GREP)
-
-tar -xf $PKG_GREP
-cd ${PKG_GREP%.tar*}
-
+# Grep Phase 4
 ./configure --prefix=/usr
 
 make
@@ -18,12 +6,9 @@ make
 if $RUN_TESTS
 then
     set +e
-    make check &> $TESTLOG_DIR/grep.log
+    make check
     set -e
 fi
 
 make install
-
-cd /sources
-rm -rf ${PKG_GREP%.tar*}
 

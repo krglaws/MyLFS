@@ -1,16 +1,4 @@
-#!/usr/bin/env bash
-# E2fsprogs Stage 6
-# ~~~~~~~~~~~~~~~~~
-set -e
-
-cd /sources
-
-eval "$(grep E2FSPROGS $PACKAGE_LIST)"
-PKG_E2FSPROGS=$(basename $PKG_E2FSPROGS)
-
-tar -xf $PKG_E2FSPROGS
-cd ${PKG_E2FSPROGS%.tar*}
-
+# E2fsprogs Phase 4
 mkdir build
 cd build
 
@@ -27,7 +15,7 @@ make
 if $RUN_TESTS
 then
     set +e
-    make check &> $TESTLOG_DIR/e2fsprogs.log
+    make check
     set -e
 fi
 
@@ -41,7 +29,4 @@ install-info --dir-file=/usr/share/info/dir /usr/share/info/libext2fs.info
 makeinfo -o      doc/com_err.info ../lib/et/com_err.texinfo
 install -m644 doc/com_err.info /usr/share/info
 install-info --dir-file=/usr/share/info/dir /usr/share/info/com_err.info
-
-cd /sources
-rm -rf ${PKG_E2FSPROGS%.tar*}
 

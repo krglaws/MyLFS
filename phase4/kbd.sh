@@ -1,18 +1,5 @@
-#!/usr/bin/env bash
-# Kbd Stage 6
-# ~~~~~~~~~~~
-set -e
-
-cd /sources
-
-eval "$(grep KBD $PACKAGE_LIST)"
-PKG_KBD=$(basename $PKG_KBD)
-PATCH_KBD=$(basename $PATCH_KBD)
-
-tar -xf $PKG_KBD
-cd ${PKG_KBD%.tar*}
-
-patch -Np1 -i ../kbd-2.4.0-backspace-1.patch
+# Kbd Phase 4
+patch -Np1 -i ../$(basename $PATCH_KBD)
 
 sed -i '/RESIZECONS_PROGS=/s/yes/no/' configure
 sed -i 's/resizecons.8 //' docs/man/man8/Makefile.in
@@ -24,7 +11,7 @@ make
 if $RUN_TESTS
 then
     set +e
-    make check &> $TESTLOG_DIR/kbd.log
+    make check
     set -e
 fi
 
@@ -32,7 +19,4 @@ make install
 
 mkdir -pv           /usr/share/doc/kbd-2.4.0
 cp -R -v docs/doc/* /usr/share/doc/kbd-2.4.0
-
-cd /sources
-rm -rf ${PKG_KBD%.tar*}
 

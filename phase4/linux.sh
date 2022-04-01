@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# LINUX Stage 6
+# LINUX Phase 4
 # ~~~~~~~~~~~~~
 set -e
 

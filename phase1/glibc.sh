@@ -29,19 +29,5 @@ make DESTDIR=$LFS install
 
 sed '/RTLDLIST=/s@/usr@@g' -i $LFS/usr/bin/ldd
 
-# check that everything is good
-echo 'int main(){}' > dummy.c
-$LFS_TGT-gcc dummy.c
-OUTPUT=$(readelf -l a.out | grep '/ld-linux')
-EXPECTED='[Requesting program interpreter: /lib64/ld-linux-x86-64.so.2]'
-if [[ "$OUTPUT" != *"${EXPECTED}"* ]]
-then
-    echo "ERROR: OUTPUT does not contain expected value.\n" \
-         "OUTPUT=$OUTPUT\n" \
-         "EXPECTED=$EXPECTED"
-    exit -1
-fi
-rm dummy.c a.out
-
 $LFS/tools/libexec/gcc/$LFS_TGT/11.2.0/install-tools/mkheaders
 

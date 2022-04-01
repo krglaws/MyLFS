@@ -1,16 +1,4 @@
-#!/usr/bin/env bash
-# Ncurses Stage 6
-# ~~~~~~~~~~~~~~~
-set -e
-
-cd /sources
-
-eval "$(grep NCURSES $PACKAGE_LIST)"
-PKG_NCURSES=$(basename $PKG_NCURSES)
-
-tar -xf $PKG_NCURSES
-cd ${PKG_NCURSES%.tar*}
-
+# Ncurses Phase 4
 ./configure --prefix=/usr           \
             --mandir=/usr/share/man \
             --with-shared           \
@@ -39,7 +27,4 @@ ln -sf libncurses.so      /usr/lib/libcurses.so
 
 mkdir -p      /usr/share/doc/ncurses-6.3
 cp -R doc/* /usr/share/doc/ncurses-6.3
-
-cd /sources
-rm -rf ${PKG_NCURSES%.tar*}
 

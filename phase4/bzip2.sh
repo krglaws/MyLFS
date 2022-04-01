@@ -1,5 +1,5 @@
 # Bzip2 Phase 4
-patch -Np1 -i ../$PATCH_BZIP2
+patch -Np1 -i ../$(basename $PATCH_BZIP2)
 
 sed -i 's@\(ln -s -f \)$(PREFIX)/bin/@\1@' Makefile
 sed -i "s@(PREFIX)/man@(PREFIX)/share/man@g" Makefile

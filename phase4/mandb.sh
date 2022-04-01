@@ -1,16 +1,4 @@
-#!/usr/bin/env bash
-# Man-DB Stage 6
-# ~~~~~~~~~~~~~~
-set -e
-
-cd /sources
-
-eval "$(grep MANDB $PACKAGE_LIST)"
-PKG_MANDB=$(basename $PKG_MANDB)
-
-tar -xf $PKG_MANDB
-cd ${PKG_MANDB%.tar*}
-
+# Man-DB Phase 4
 ./configure --prefix=/usr                         \
             --docdir=/usr/share/doc/man-db-2.10.1 \
             --sysconfdir=/etc                     \
@@ -27,12 +15,9 @@ make
 if $RUN_TESTS
 then
     set +e
-    make check &> $TESTLOG_DIR/mandb.log
+    make check
     set -e
 fi
 
 make install
-
-cd /sources
-rm -rf ${PKG_MANDB%.tar*}
 

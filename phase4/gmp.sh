@@ -1,16 +1,4 @@
-#!/usr/bin/env bash
-# GMP Stage 6
-# ~~~~~~~~~~~
-set -e
-
-cd /sources
-
-eval "$(grep GMP $PACKAGE_LIST)"
-PKG_GMP=$(basename $PKG_GMP)
-
-tar -xf $PKG_GMP
-cd ${PKG_GMP%.tar*}
-
+# GMP Phase 4
 ./configure --prefix=/usr    \
             --enable-cxx     \
             --disable-static \
@@ -22,7 +10,7 @@ make html
 if $RUN_TESTS
 then
     set +e
-    make check &> $TESTLOG_DIR/gmp_test.log
+    make check 
     set -e
 fi
 
@@ -35,7 +23,4 @@ fi
 
 make install
 make install-html
-
-cd /sources
-rm -rf ${PKG_GMP%.tar*}
 

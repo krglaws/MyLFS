@@ -1,16 +1,4 @@
-#!/usr/bin/env bash
-# Tar Stage 6
-# ~~~~~~~~~~~
-set -e
-
-cd /sources
-
-eval "$(grep TAR $PACKAGE_LIST)"
-PKG_TAR=$(basename $PKG_TAR)
-
-tar -xf $PKG_TAR
-cd ${PKG_TAR%.tar*}
-
+# Tar Phase 4
 FORCE_UNSAFE_CONFIGURE=1  \
 ./configure --prefix=/usr
 
@@ -19,14 +7,11 @@ make
 if $RUN_TESTS
 then
     set +e
-    make check &> $TESTLOG_DIR/tar.log
+    make check 
     set -e
 fi
 
 make install
 
 make -C doc install-html docdir=/usr/share/doc/tar-1.34
-
-cd /sources
-rm -rf ${PKG_TAR%.tar*}
 

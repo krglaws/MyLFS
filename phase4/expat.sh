@@ -1,16 +1,4 @@
-#!/usr/bin/env bash
-# Expat Stage 6
-# ~~~~~~~~~~~~~
-set -e
-
-cd /sources
-
-eval "$(grep EXPAT $PACKAGE_LIST)"
-PKG_EXPAT=$(basename $PKG_EXPAT)
-
-tar -xf $PKG_EXPAT
-cd ${PKG_EXPAT%.tar*}
-
+# Expat Phase 4
 ./configure --prefix=/usr    \
             --disable-static \
             --docdir=/usr/share/doc/expat-2.4.6
@@ -20,14 +8,11 @@ make
 if $RUN_TESTS
 then
     set +e
-    make check &> $TESTLOG_DIR/expat.log
+    make check
     set -e
 fi
 
 make install
 
 install -m644 doc/*.{html,css} /usr/share/doc/expat-2.4.6
-
-cd /sources
-rm -rf ${PKG_EXPAT%.tar*}
 

@@ -1,18 +1,5 @@
-#!/usr/bin/env bash
-# Perl Stage 6
-# ~~~~~~~~~~~~
-set -e
-
-cd /sources
-
-eval "$(grep PERL $PACKAGE_LIST)"
-PKG_PERL=$(basename $PKG_PERL)
-PATCH_PERL=$(basename $PATCH_PERL)
-
-tar -xf $PKG_PERL
-cd ${PKG_PERL%.tar*}
-
-patch -Np1 -i ../$PATCH_PERL
+# Perl Phase 4
+patch -Np1 -i ../$(basename $PATCH_PERL)
 
 export BUILD_ZLIB=False
 export BUILD_BZIP2=0
@@ -37,12 +24,9 @@ make
 if $RUN_TESTS
 then
     set +e
-    make test &> $TESTLOG_DIR/perl.log
+    make test
     set -e
 fi
 
 make install
-
-cd /sources
-rm -rf ${PKG_PERL%.tar*}
 

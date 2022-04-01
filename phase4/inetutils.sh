@@ -1,16 +1,4 @@
-#!/usr/bin/env bash
-# Inetutils Stage 6
-# ~~~~~~~~~~~~~~~~~
-set -e
-
-cd /sources
-
-eval "$(grep INETUTILS $PACKAGE_LIST)"
-PKG_INETUTILS=$(basename $PKG_INETUTILS)
-
-tar -xf $PKG_INETUTILS
-cd ${PKG_INETUTILS%.tar*}
-
+# Inetutils Phase 4
 ./configure --prefix=/usr        \
             --bindir=/usr/bin    \
             --localstatedir=/var \
@@ -27,14 +15,11 @@ make
 if $RUN_TESTS
 then
     set +e
-    make check &> $TESTLOG_DIR/inetutils.log
+    make check
     set -e
 fi
 
 make install
 
 mv /usr/{,s}bin/ifconfig
-
-cd /sources
-rm -rf ${PKG_INETUTILS%.tar*}
 

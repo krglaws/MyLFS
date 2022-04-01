@@ -1,16 +1,4 @@
-#!/usr/bin/env bash
-# Shadow Stage 6
-# ~~~~~~~~~~~~~~~
-set -e
-
-cd /sources
-
-eval "$(grep SHADOW $PACKAGE_LIST)"
-PKG_SHADOW=$(basename $PKG_SHADOW)
-
-tar -xf $PKG_SHADOW
-cd ${PKG_SHADOW%.tar*}
-
+# Shadow Phase 4
 sed -i 's/groups$(EXEEXT) //' src/Makefile.in
 find man -name Makefile.in -exec sed -i 's/groups\.1 / /'   {} \;
 find man -name Makefile.in -exec sed -i 's/getspnam\.3 / /' {} \;
@@ -37,7 +25,4 @@ mkdir -p /etc/default
 useradd -D --gid 999
 
 echo "root:$ROOT_PASSWD" | chpasswd
-
-cd /sources
-rm -rf ${PKG_SHADOW%.tar*}
 

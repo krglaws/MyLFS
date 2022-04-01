@@ -1,16 +1,4 @@
-#!/usr/bin/env bash
-# Make Stage 6
-# ~~~~~~~~~~~~
-set -e
-
-cd /sources
-
-eval "$(grep MAKE $PACKAGE_LIST)"
-PKG_MAKE=$(basename $PKG_MAKE)
-
-tar -xf $PKG_MAKE
-cd ${PKG_MAKE%.tar*}
-
+# Make Phase 4
 ./configure --prefix=/usr
 
 make
@@ -18,12 +6,9 @@ make
 if $RUN_TESTS
 then
     set +e
-    make check &> $TESTLOG_DIR/make.log
+    make check
     set -e
 fi
 
 make install
-
-cd /sources
-rm -rf ${PKG_MAKE%.tar*}
 

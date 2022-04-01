@@ -1,5 +1,5 @@
 # Glibc Phase 4
-patch -Np1 -i ../$PATCH_GLIBC
+patch -Np1 -i ../$(basename $PATCH_GLIBC)
 
 mkdir build
 cd build
@@ -66,21 +66,7 @@ localedef -i zh_CN -f GB18030 zh_CN.GB18030
 localedef -i zh_HK -f BIG5-HKSCS zh_HK.BIG5-HKSCS
 localedef -i zh_TW -f UTF-8 zh_TW.UTF-8
 
-cat > /etc/nsswitch.conf << "EOF"
-passwd: files
-group: files
-shadow: files
-
-hosts: files dns
-networks: files
-
-protocols: files
-services: files
-ethers: files
-rpc: files
-EOF
-
-tar -xf ../../tzdata2021e.tar.gz
+tar -xf ../../$(basename $PKG_TZDATA)
 
 ZONEINFO=/usr/share/zoneinfo
 mkdir -p $ZONEINFO/{posix,right}
@@ -97,9 +83,4 @@ zic -d $ZONEINFO -p America/New_York
 unset ZONEINFO
 
 ln -sf /usr/share/zoneinfo/America/New_York /etc/localtime
-
-cat > /etc/ld.so.conf << "EOF"
-/usr/local/lib
-/opt/lib
-EOF
 

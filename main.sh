@@ -4,13 +4,13 @@ cd $(dirname $0)
 
 source ./config.sh
 
+./clean_img.sh
+
 while read pkg;
 do
     eval $pkg
     export $(echo $pkg | cut -d"=" -f1)
-done < ./pkgs.sh
-
-./clean_img.sh
+done < $PACKAGE_LIST
 
 
 # #########
@@ -60,22 +60,6 @@ function check_dependency {
     fi
 }
 
-function get_packages {
-    PACKAGE_URLS=$(cat $PACKAGE_LIST | cut -d"=" -f2)
-    PACKAGES=$(ls ./pkgs)
-
-    # check if packages have already been downloaded
-    if [ -z "$PACKAGES" ]
-    then
-# no indent because here-doc
-wget --quiet --directory-prefix $PACKAGE_DIR --input-file - <<EOF
-$PACKAGE_URLS
-EOF
-    fi
-
-    cp $PACKAGE_DIR/* $LFS/sources
-}
-
 function install_static {
     FILENAME=$1
     FULLPATH="$LFS/$(basename $FILENAME | sed 's/__/\//g')"
@@ -96,28 +80,25 @@ function install_template {
 }
 
 function build_package {
-    NAME=$1
-    OVERRIDE=$2
+    local NAME=$1
+    local NAME_OVERRIDE=$2
 
     echo -n "Building $NAME phase $PHASE... "
 
-    PKG_NAME=PKG_$([ -n "$OVERRIDE" ] && echo $OVERRIDE || echo $NAME | tr a-z A-Z)
+    local PKG_NAME=PKG_$([ -n "$NAME_OVERRIDE" ] && echo $NAME_OVERRIDE || echo $NAME | tr a-z A-Z)
     PKG_NAME=$(basename ${!PKG_NAME})
 
-    PATCH_NAME=PATCH_$([ -n "$OVERRIDE" ] && echo $OVERRIDE || echo $NAME | tr a-z A-Z)
-    PATCH_NAME=$([ -n "${!PATCH_NAME}" ] && basename ${!PATCH_NAME} || echo "")
+    local LOG_FILE=$LOG_DIR/${NAME}_phase${PHASE}.log
 
-    DIR_NAME=${PKG_NAME%.tar*}
-    LOG_FILE=$LOG_DIR/${NAME}_phase${PHASE}.log
-
-    BUILD_INSTR="
+    local BUILD_INSTR="
         set -e
         pushd sources > /dev/null
-        tar -xf $PKG_NAME
-        cd $DIR_NAME
+        mkdir $NAME
+        tar -xf $PKG_NAME -C $NAME --strip-components=1
+        cd $NAME
         $(cat ./phase${PHASE}/${NAME}.sh)
         popd
-        rm -r sources/$DIR_NAME
+        rm -r sources/$NAME
     "
 
     pushd $LFS > /dev/null
@@ -127,11 +108,11 @@ function build_package {
                 HOME=/root \
                 TERM=$TERM \
                 PATH=/usr/bin:/usr/sbin &> $LOG_FILE \
-                LFS_TGT=$LFS_TGT \
+                MAKEFLAGS=$MAKEFLAGS \
                 ROOT_PASSWD=$ROOT_PASSWD \
                 RUN_TESTS=$RUN_TESTS \
-                "$(cat $PACKAGE_LIST)" \
-                /bin/bash +h -c "$BUILD_INSTR" &> $LOG_FILE
+                $(cat $PACKAGE_LIST) \
+                /usr/bin/bash +h -c "$BUILD_INSTR" &> $LOG_FILE
         then
             echo -e "\nERROR: $NAME Phase $PHASE failed:"
             tail $LOG_FILE
@@ -145,7 +126,12 @@ function build_package {
     fi
     popd > /dev/null
 
-    (cd $LOG_DIR && gzip $LOG_FILE)
+    if $KEEP_LOGS
+    then
+        (cd $LOG_DIR && gzip $LOG_FILE)
+    else
+        rm $LOG_FILE
+    fi
 
     echo "done."
 
@@ -294,7 +280,7 @@ echo "done."
 
 echo -n "Creating basic directory layout... "
 
-mkdir -p $LFS/{bin,boot,dev,etc,home,lib64,media,mnt,opt,proc,run,srv,sys,tools,usr,var}
+mkdir -p $LFS/{boot,dev,etc,home,lib64,media,mnt,opt,proc,run,srv,sys,tools,usr,var}
 mkdir -p $LFS/boot/grub
 mkdir -p $LFS/etc/{modprobe.d,opt,sysconfig}
 mkdir -p $LFS/media/{cdrom,floppy}
@@ -358,7 +344,10 @@ fi
 echo "done."
 
 echo -n "Downloading packages to $LFS/sources... "
-get_packages
+wget --quiet --no-clobber --directory-prefix $PACKAGE_DIR --input-file - <<EOF
+$(cat $PACKAGE_LIST | cut -d"=" -f2)
+EOF
+cp ./pkgs/*.tar.* ./pkgs/*.patch $LFS/sources
 echo "done."
 
 
@@ -440,8 +429,6 @@ echo -e \
 "# Phase 4\n"\
 "# ~~~~~~~"
 
-exit
-
 PHASE=4
 build_package manpages
 build_package ianaetc
@@ -519,11 +506,11 @@ build_package sysvinit
 build_package lfsbootscripts
 
 # UEFI Boot Dependencies
-build_pakcage popt
-build_package mandoc
-build_package efivar
-build_package efibootmgr
-build_package grub
+#build_pakcage popt
+#build_package mandoc
+#build_package efivar
+#build_package efibootmgr
+#build_package grub
 
 # delete tmp files created during builds
 rm -rf $LFS/tmp/*

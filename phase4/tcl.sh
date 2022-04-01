@@ -1,16 +1,4 @@
-#!/usr/bin/env bash
-# Tcl Stage 6
-# ~~~~~~~~~~~
-set -e
-
-cd /sources
-
-eval "$(grep TCL $PACKAGE_LIST)"
-PKG_TCL=$(basename $PKG_TCL)
-
-tar -xf $PKG_TCL
-cd ${PKG_TCL%-src.tar*}
-
+# Tcl Phase 4
 tar -xf ../$(basename $PKG_TCLDOCS) --strip-components=1
 SRCDIR=$(pwd)
 cd unix
@@ -40,7 +28,7 @@ unset SRCDIR
 if $RUN_TESTS
 then
     set +e
-    make test &> $TESTLOG_DIR/tcl.log
+    make test
     set -e
 fi
 
@@ -56,7 +44,4 @@ mv /usr/share/man/man3/{Thread,Tcl_Thread}.3
 
 mkdir -p /usr/share/doc/tcl-8.6.12
 cp -r  ../html/* /usr/share/doc/tcl-8.6.12
-
-cd /sources
-rm -rf ${PKG_TCL%-src.tar*}
 
