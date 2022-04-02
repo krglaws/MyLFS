@@ -21,7 +21,7 @@ make install
 mv /etc/bash_completion.d/grub /usr/share/bash-completion/completions
 
 GRUB_OUTPUT=$(grub-install --bootloader-id=LFS --recheck)
-if ! echo $GRUB_OUTPUT | grep "No error reported"
+if [ -n "$(echo $GRUB_OUTPUT | grep "No error reported")" ]
 then
     echo "An error occured while installing GRUB:"
     echo $GRUB_OUTPUT

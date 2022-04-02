@@ -24,6 +24,16 @@ function usage {
          "\n" \
          "        -o|--one-off        Only build the specified phase/package.\n" \
          "\n" \
+         "        -k|--kernel-config  Optional path to kernel config file to use during linux\n" \
+         "                            build.\n" \
+         "\n" \
+         "        -m|--mount\n" \
+         "        -u|--umount         These options will mount or unmount the disk image to the\n" \
+         "                            filesystem, and then exit the script immediately.\n" \
+         "                            You should be sure to unmount prior to running any part of\n" \
+         "                            the build, since the image will be automatically mounted\n" \
+         "                            and then unmounted at the end.\n" \
+         "\n" \
          "        -c|--clean          This will unmount and delete the image, and clear the\n" \
          "                            logs.\n" \
          "\n" \
@@ -256,6 +266,10 @@ EOF
     do
         install_static $file
     done
+    if [ -n "$KERNELCONFIG" ]
+    then
+        cp $KERNELCONFIG /boot/config-$KERNELVERS
+    fi
 
     # install templates
     install_template ./templates/boot__grub__grub.cfg LFSROOTLABEL
@@ -291,7 +305,7 @@ function get_packages {
 wget --quiet --no-clobber --directory-prefix $PACKAGE_DIR --input-file - <<EOF
 $(cat $PACKAGE_LIST | cut -d"=" -f2)
 EOF
-    cp ./pkgs/*.tar.* ./pkgs/*.patch $LFS/sources
+    cp ./pkgs/* $LFS/sources
     echo "done."
 }
 
@@ -301,7 +315,7 @@ function mount_image {
     LOOP_P1=${LOOP}p1
     LOOP_P2=${LOOP}p2
     losetup -P $LOOP $LFS_IMG
-    sleep 1
+    sleep 1 # give the kernel a sec
 
     # mount root fs
     mount $LOOP_P2 $LFS
@@ -310,7 +324,6 @@ function mount_image {
     mount -t vfat $LOOP_P1 $LFS/boot/efi
 
     # mount stuff from the host onto the target disk
-    echo "mounting the rest of the shit"
     mount --bind /dev $LFS/dev
     mount --bind /dev/pts $LFS/dev/pts
     mount -t proc proc $LFS/proc
@@ -348,6 +361,7 @@ function build_package {
     local BUILD_INSTR="
         set -e
         pushd sources > /dev/null
+        rm -rf $NAME
         mkdir $NAME
         tar -xf $PKG_NAME -C $NAME --strip-components=1
         cd $NAME
@@ -366,6 +380,7 @@ function build_package {
                 MAKEFLAGS=$MAKEFLAGS \
                 ROOT_PASSWD=$ROOT_PASSWD \
                 RUN_TESTS=$RUN_TESTS \
+                KERNELVERS=$KERNELVERS \
                 $(cat $PACKAGE_LIST) \
                 /usr/bin/bash +h -c "$BUILD_INSTR" &> $LOG_FILE
         then
@@ -398,7 +413,7 @@ function build_phase {
 
     if [ -n "$STARTPHASE" ]
     then
-        if [ $PHASE -lt $STARTPHASE ] || $FOUNDSTARTPHASE && $ONEOFF
+        if [ $PHASE -lt $STARTPHASE ] || { $FOUNDSTARTPHASE && $ONEOFF; }
         then
             echo "Skipping phase $PHASE"
             return 0
@@ -506,6 +521,19 @@ while [ $# -gt 0 ]; do
       shift
       shift
       ;;
+    -k|--kernel-config)
+      KERNELCONFIG="$2"
+      shift
+      shift
+      ;;
+    -m|--mount)
+      mount_image
+      exit
+      ;;
+    -u|--umount)
+      unmount_image
+      exit
+      ;;
     -c|--clean)
       clean_image
       exit
@@ -594,11 +622,11 @@ trap "{ unmount_image; exit 1; }" ERR SIGINT
 
 build_phase 1
 
-$ONEOFF && $FOUNDSTARTPHASE && unmount && exit
+$ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
 
 build_phase 2
 
-$ONEOFF && $FOUNDSTARTPHASE && unmount && exit
+$ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
 
 build_phase 3
 
@@ -607,7 +635,7 @@ rm -rf $LFS/usr/share/{info,man,doc}/*
 find $LFS/usr/{lib,libexec} -name \*.la -delete
 rm -rf $LFS/tools
 
-$ONEOFF && $FOUNDSTARTPHASE && unmount && exit
+$ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
 
 build_phase 4
 
