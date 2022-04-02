@@ -562,7 +562,7 @@ elif [ -n "$STARTPKG" -a -z "$STARTPHASE" ]
 then
     echo "ERROR: -p|--start-phase must be defined if -a|--start-package is defined"
     exit 1
-elif [ $ONEOFF -a -z "$STARTPHASE" -a -z "$STARTPKG" ]
+elif $ONEOFF && [ -z "$STARTPHASE" -a -z "$STARTPKG" ]
 then
     echo "ERROR: -o|--one-off has no effect without a starting phase and/or package selected."
     exit 1
