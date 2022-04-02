@@ -14,7 +14,7 @@ Welcome to MyLFS.
                              These options are only available if the preceeding
                              phases have been completed. They should really only
                              be used when something broke during a build, and you
-                             don't want to start from the beginning again.
+                             don\'t want to start from the beginning again.
 
          -o|--one-off        Only build the specified phase/package.
 
