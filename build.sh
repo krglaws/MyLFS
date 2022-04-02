@@ -310,6 +310,9 @@ EOF
 }
 
 function mount_image {
+    # make sure everything is unmounted first
+    unmount_image
+
     # attach loop device
     LOOP=$(losetup -f)
     LOOP_P1=${LOOP}p1
