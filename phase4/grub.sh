@@ -1,6 +1,6 @@
 # GRUB Phase 4
-mkdir -pv /usr/share/fonts/unifont &&
-gunzip -c ../unifont-14.0.01.pcf.gz > /usr/share/fonts/unifont/unifont.pcf
+mkdir -p /usr/share/fonts/unifont
+gunzip -c ../$(basename $PKG_UNIFONT) > /usr/share/fonts/unifont/unifont.pcf
 
 unset {C,CPP,CXX,LD}FLAGS
 
@@ -9,7 +9,7 @@ unset {C,CPP,CXX,LD}FLAGS
             --disable-efiemu     \
             --with-platform=efi  \
             --target=x86_64      \
-            --disable-werror     \
+            --disable-werror     
 #           --enable-grub-mkfont (uncomment if using FreeType)
 
 unset TARGET_CC

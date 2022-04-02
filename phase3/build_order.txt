@@ -1,0 +1,7 @@
+libstdcpp GCC
+gettext
+bison
+perl
+python
+texinfo
+utillinux
