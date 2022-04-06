@@ -7,6 +7,8 @@ then
     exit 1
 fi
 
+LFS_VERSION=11.1
+
 # #########
 # Functions
 # ~~~~~~~~~
@@ -14,6 +16,10 @@ fi
 function usage {
     echo -e "Welcome to MyLFS.\n" \
          "    options: \n" \
+         "        -e|--check          Outputs LFS dependency version information, then exits.\n" \
+         "                            It is recommended that you run this before proceeding\n" \
+         "                            with the rest of the build.\n" \
+         "\n" \
          "        -p|--start-phase\n" \
          "        -a|--start-package  Select a phase and optionally a package\n" \
          "                            within that phase to start building from.\n" \
@@ -37,76 +43,61 @@ function usage {
          "        -c|--clean          This will unmount and delete the image, and clear the\n" \
          "                            logs.\n" \
          "\n" \
+         "        -v|--version        Print the LFS version this build is based on.\n" \
+         "\n" \
          "        -h|--help           Show this message."
-}
-
-function compare_version {
-    local MINVERS=$1
-    local CURRVERS=$2
-    local NDIGS=$(echo $MINVERS | tr . ' ' | wc -w)
-
-    for ((FIELD=1; FIELD < NDIGS; FIELD++))
-    do
-        MINDIGIT=$(echo $MINVERS | cut -d"." -f$FIELD)
-        CURRDIGIT=$(echo $CURRVERS | cut -d"." -f$FIELD)
-        if [[ "0x$CURRDIGIT" -gt "0x$MINDIGIT" ]]
-        then
-            return 0
-        elif [[ "0x$CURRDIGIT" -eq "0x$MINDIGIT" ]]
-        then
-            continue
-        else
-            return 1
-        fi
-    done
-
-    return 0
 }
 
 function check_dependency {
     local PROG=$1
     local MINVERS=$2
-    local CURRVERSFIELD=$3
+    local MAXVERS=$([ -n "$3" ] && echo $3 || echo "none")
 
-    if ! command -v $PROG 1 > /dev/null
+    if ! command -v $PROG > /dev/null
     then
         echo "ERROR: '$PROG' not found"
         return 1
     fi
 
-    CURRVERS=$($PROG --version 2>&1 | head -n1 | cut -d" " -f$CURRVERSFIELD | cut -d"(" -f1 | cut -d"," -f1 | cut -d"-" -f1)
-    CURRVERS=${CURRVERS%"${CURRVERS##*[0-9]}"}
+    echo -e "$PROG:\n" \
+            "  Minimum: $MINVERS, Maximum: $MAXVERS\n" \
+            "  You have: $($PROG --version | head -n 1)"
 
-    if ! compare_version "$MINVERS" "$CURRVERS"
-    then
-        echo "ERROR: $PROG $CURRVERS does not satisfy minimum version $MINVERS"
-    fi
+    return 0
+}
+
+function kernel_vers {
+    cat /proc/version | head -n1
+}
+
+function perl_vers {
+    perl -V:version
 }
 
 function check_dependencies {
     EXIT_STATUS=0
 
-    echo -n "Checking system dependencies... "
-
-    if ! check_dependency bash       3.2     4; then EXIT_STATUS=1; fi
-    if ! check_dependency ld         2.13.1  7; then EXIT_STATUS=1; fi  # binutils
-    if ! check_dependency bison      2.7     4; then EXIT_STATUS=1; fi
-    if ! check_dependency chown      6.9     4; then EXIT_STATUS=1; fi  # coreutils
-    if ! check_dependency diff       2.8.1   4; then EXIT_STATUS=1; fi
-    if ! check_dependency find       4.2.31  4; then EXIT_STATUS=1; fi
-    if ! check_dependency gawk       4.0.1   3; then EXIT_STATUS=1; fi
-    if ! check_dependency gcc        4.8     4; then EXIT_STATUS=1; fi
-    if ! check_dependency g++        4.8     4; then EXIT_STATUS=1; fi
-    if ! check_dependency grep       2.5.1a  4; then EXIT_STATUS=1; fi
-    if ! check_dependency gzip       1.3.12  2; then EXIT_STATUS=1; fi
-    if ! check_dependency m4         1.4.10  4; then EXIT_STATUS=1; fi
-    if ! check_dependency make       4.0     3; then EXIT_STATUS=1; fi
-    if ! check_dependency patch      2.5.4   3; then EXIT_STATUS=1; fi
-    if ! check_dependency python3    3.4     2; then EXIT_STATUS=1; fi
-    if ! check_dependency sed        4.1.5   4; then EXIT_STATUS=1; fi
-    if ! check_dependency tar        1.22    4; then EXIT_STATUS=1; fi
-    if ! check_dependency makeinfo   4.7     4; then EXIT_STATUS=1; fi  # texinfo
-    if ! check_dependency xz         5.0.0   4; then EXIT_STATUS=1; fi
+    if ! check_dependency bash        3.2        ; then EXIT_STATUS=1; fi
+    if ! check_dependency ld          2.13.1 2.38; then EXIT_STATUS=1; fi  # binutils
+    if ! check_dependency bison       2.7        ; then EXIT_STATUS=1; fi
+    if ! check_dependency chown       6.9        ; then EXIT_STATUS=1; fi  # coreutils
+    if ! check_dependency diff        2.8.1      ; then EXIT_STATUS=1; fi
+    if ! check_dependency find        4.2.31     ; then EXIT_STATUS=1; fi
+    if ! check_dependency gawk        4.0.1      ; then EXIT_STATUS=1; fi
+    if ! check_dependency gcc         4.8 11.2.0 ; then EXIT_STATUS=1; fi
+    if ! check_dependency g++         4.8 11.2.0 ; then EXIT_STATUS=1; fi
+    if ! check_dependency grep        2.5.1a     ; then EXIT_STATUS=1; fi
+    if ! check_dependency gzip        1.3.12     ; then EXIT_STATUS=1; fi
+    if ! check_dependency m4          1.4.10     ; then EXIT_STATUS=1; fi
+    if ! check_dependency make        4.0        ; then EXIT_STATUS=1; fi
+    if ! check_dependency patch       2.5.4      ; then EXIT_STATUS=1; fi
+    if ! check_dependency python3     3.4        ; then EXIT_STATUS=1; fi
+    if ! check_dependency sed         4.1.5      ; then EXIT_STATUS=1; fi
+    if ! check_dependency tar         1.22       ; then EXIT_STATUS=1; fi
+    if ! check_dependency makeinfo    4.7        ; then EXIT_STATUS=1; fi  # texinfo
+    if ! check_dependency xz          5.0.0      ; then EXIT_STATUS=1; fi
+    if ! check_dependency kernel_vers 3.2        ; then EXIT_STATUS=1; fi  # linux
+    if ! check_dependency perl_vers   5.8.8      ; then EXIT_STATUS=1; fi  # perl
 
     # check that yacc is a link to bison
     if [ ! -h /usr/bin/yacc -a "$(readlink -f /usr/bin/yacc)"="/usr/bin/bison.yacc" ]
@@ -122,24 +113,6 @@ function check_dependencies {
         EXIT_STATUS=1
     fi
 
-    # check linux version
-    MIN_LINUX_VERS=3.2
-    LINUX_VERS=$(cat /proc/version | head -n1 | cut -d" " -f3 | cut -d"-" -f1)
-    if ! compare_version "$MIN_LINUX_VERSION" "$LINUX_VERS"
-    then
-        echo "ERROR: Linux kernel version '$LINUX_VERS' does not satisfy minium version $MIN_LINUX_VERS"
-        EXIT_STATUS=1
-    fi
-
-    # check perl version
-    MIN_PERL_VERS=5.8.8
-    PERL_VERS=$(perl -V:version | cut -d"'" -f2)
-    if ! compare_version "$MIN_PERL_VERS" "$PERL_VERS"
-    then
-        echo "ERROR: Perl version '$PERL_VERS' does not satisfy minium version $MIN_PERL_VERS"
-        EXIT_STATUS=1
-    fi
-
     # check G++ compilation
     echo 'int main(){}' > dummy.c && g++ -o dummy dummy.c
     if [ ! -x dummy ]
@@ -148,8 +121,6 @@ function check_dependencies {
         EXIT_STATUS=1
     fi
     rm -f dummy.c dummy
-
-    echo "done."
 
     return $EXIT_STATUS
 }
@@ -476,7 +447,6 @@ function build_phase {
     return 0
 }
 
-
 function clean_image {
     unmount_image
 
@@ -510,6 +480,10 @@ ONEOFF=false
 
 while [ $# -gt 0 ]; do
   case $1 in
+    -e|--check)
+      check_dependencies
+      exit
+      ;;
     -o|--one-off)
       ONEOFF=true
       shift
@@ -541,6 +515,10 @@ while [ $# -gt 0 ]; do
       clean_image
       exit
       ;;
+    -v|--version)
+      echo $LFS_VERSION
+      exit
+      ;;
     -h|--help)
       usage
       exit
@@ -554,7 +532,7 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -n "$STARTPHASE" ] &&
-[ "$STARTPHASE" != "1" -a "$STARTPHASE" != 2 -a "$STARTPHASE" != 3 -a "$STARTPHASE" != 4 ]
+[ "$STARTPHASE" != 1 -a "$STARTPHASE" != 2 -a "$STARTPHASE" != 3 -a "$STARTPHASE" != 4 ]
 then
     echo "ERROR: phase '$STARTPHASE' does not exist"
     exit 1
@@ -576,8 +554,6 @@ FOUNDSTARTPHASE=false
 # Prepare for build
 # ~~~~~~~~~~~~~~~~~
 
-check_dependencies
-
 while read pkg;
 do
     eval $pkg
@@ -591,7 +567,6 @@ then
         echo "ERROR: $LFS_IMG is not present - cannot start from phase $STARTPHASE."
         exit 1
     fi
-
     mount_image
 else
     if [ -f $LFS_IMG ]
