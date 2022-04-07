@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -e
 
+LFS_VERSION=11.1
+
 if [ $UID -ne 0 ]
 then
     echo "ERROR: This script must be run as root."
     exit 1
 fi
-
-LFS_VERSION=11.1
 
 # #########
 # Functions
@@ -15,10 +15,22 @@ LFS_VERSION=11.1
 
 function usage {
     echo -e "Welcome to MyLFS.\n" \
+         "    When running the script without arguments, it will attempt to build the\n" \
+         "entire project from beginning to end. Before starting any part of the build,\n" \
+         "however, you should be sure to run the script with '--check' to verify the\n" \
+         "dependencies on your system.\n" \
+         "\n" \
          "    options: \n" \
-         "        -e|--check          Outputs LFS dependency version information, then exits.\n" \
+         "        -v|--version        Print the LFS version this build is based on, then exit.\n" \
+         "\n" \
+         "        -e|--check          Output LFS dependency version information, then exit.\n" \
          "                            It is recommended that you run this before proceeding\n" \
          "                            with the rest of the build.\n" \
+         "\n" \
+         "        -V|--verbose        The script will output more information where applicable.\n" \
+         "\n" \
+         "        -d|--download-pkgs  Download all packages into the 'pkgs' directory, then\n" \
+         "                            exit.\n" \
          "\n" \
          "        -p|--start-phase\n" \
          "        -a|--start-package  Select a phase and optionally a package\n" \
@@ -42,8 +54,6 @@ function usage {
          "\n" \
          "        -c|--clean          This will unmount and delete the image, and clear the\n" \
          "                            logs.\n" \
-         "\n" \
-         "        -v|--version        Print the LFS version this build is based on.\n" \
          "\n" \
          "        -h|--help           Show this message."
 }
@@ -145,6 +155,10 @@ function install_template {
 }
 
 function init_image {
+
+    # download packages into ./pkgs directory
+    download_pkgs
+
     echo -n "Creating image file... "
 
     # create image file
@@ -221,6 +235,7 @@ EOF
     mkdir -p $LFS/home/tester
     chown 101:101 $LFS/home/tester
     mkdir -p $LFS/sources
+    cp ./pkgs/* $LFS/sources
 
     # create symlinks
     for i in bin lib sbin
@@ -271,12 +286,38 @@ EOF
     echo "done."
 }
 
-function get_packages {
-    echo -n "Downloading packages to $LFS/sources... "
-wget --quiet --no-clobber --directory-prefix $PACKAGE_DIR --input-file - <<EOF
-$(cat $PACKAGE_LIST | cut -d"=" -f2)
-EOF
-    cp ./pkgs/* $LFS/sources
+function cleanup_cancelled_download {
+    local PKG=$PACKAGE_DIR/$(basename $1)
+    [ -f $PKG ] && rm $PKG
+    exit
+}
+
+function download_pkgs {
+    { $VERBOSE && echo "Downloading packages... "; } || echo -n "Downloading packages... "
+
+    local PACKAGE_URLS=$(cat $PACKAGE_LIST | cut -d"=" -f2)
+    local ALREADY_DOWNLOADED=$(ls $PACKAGE_DIR)
+
+    for url in $PACKAGE_URLS
+    do
+        trap "{ cleanup_cancelled_download $url; }" ERR SIGINT
+
+        $VERBOSE && echo -n "Downloading '$url'... "
+        if ! echo $ALREADY_DOWNLOADED | grep $(basename $url) > /dev/null
+        then
+            if ! wget --quiet --directory-prefix $PACKAGE_DIR $url
+            then
+                echo -e "\nERROR: Failed to download URL '$url'"
+                exit 1
+            fi
+            $VERBOSE && echo "done."
+        else
+            $VERBOSE && echo "already have it - skipping."
+        fi
+
+        trap - ERR SIGINT
+    done
+
     echo "done."
 }
 
@@ -477,18 +518,27 @@ cd $(dirname $0)
 source ./config.sh
 
 ONEOFF=false
+VERBOSE=false
 
 while [ $# -gt 0 ]; do
   case $1 in
-    -e|--check)
-      check_dependencies
-      exit
+    -V|--verbose)
+      VERBOSE=true
+      shift
       ;;
     -o|--one-off)
       ONEOFF=true
       shift
       ;;
-    -p|--start-phase)
+    -e|--check)
+      check_dependencies
+      exit
+      ;;
+    -d|--download-pkgs)
+      download_pkgs
+      exit
+      ;;
+   -p|--start-phase)
       STARTPHASE="$2"
       shift
       shift
@@ -584,8 +634,6 @@ else
     fi
     init_image
 fi
-
-get_packages
 
 PATH=$LFS/tools/bin:$PATH
 CONFIG_SITE=$LFS/usr/share/config.site
