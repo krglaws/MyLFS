@@ -4,8 +4,9 @@ It's a giant bash script to build my own Linux distro based on LFS + BLFS. Prono
 ## How To Use
 Basically, just run `sudo ./build.sh` and then stare at your terminal for several hours. Maybe meditate on life or something while you wait. Or maybe clean your room or do your dishes finally. I don't know. Do whatever you want. Maybe by the end of the script, you'll realize why you love linux so much: you love it because it is *hard*. Just like going to the moon, god dammit.
 
-```sh
+```
 $ sudo ./build.sh --help
+
 Welcome to MyLFS.
      When running the script without arguments, it will attempt to build the
  entire project from beginning to end. Before starting any part of the build,
