@@ -3,12 +3,6 @@ set -e
 
 LFS_VERSION=11.1
 
-if [ $UID -ne 0 ]
-then
-    echo "ERROR: This script must be run as root."
-    exit 1
-fi
-
 # #########
 # Functions
 # ~~~~~~~~~
@@ -23,14 +17,17 @@ function usage {
          "    options: \n" \
          "        -v|--version        Print the LFS version this build is based on, then exit.\n" \
          "\n" \
+         "        -V|--verbose        The script will output more information where applicable.\n" \
+         "\n" \
          "        -e|--check          Output LFS dependency version information, then exit.\n" \
          "                            It is recommended that you run this before proceeding\n" \
          "                            with the rest of the build.\n" \
          "\n" \
-         "        -V|--verbose        The script will output more information where applicable.\n" \
-         "\n" \
          "        -d|--download-pkgs  Download all packages into the 'pkgs' directory, then\n" \
          "                            exit.\n" \
+         "\n" \
+         "        -i|--init           Create the .img file, partition it, setup basic directory\n" \
+         "                            structure, then exit." \
          "\n" \
          "        -p|--start-phase\n" \
          "        -a|--start-package  Select a phase and optionally a package\n" \
@@ -63,7 +60,7 @@ function check_dependency {
     local MINVERS=$2
     local MAXVERS=$([ -n "$3" ] && echo $3 || echo "none")
 
-    if ! command -v $PROG > /dev/null
+    if ! command -v $PROG &> /dev/null
     then
         echo "ERROR: '$PROG' not found"
         return 1
@@ -155,6 +152,25 @@ function install_template {
 }
 
 function init_image {
+    if [ $UID -ne 0 ]
+    then
+        echo "ERROR: must be run as root."
+        exit 1
+    fi
+
+    if [ -f $LFS_IMG ]
+    then
+        echo "WARNING: $LFS_IMG is present. If you start from the beginning, this file will be deleted."
+        read -p "Continue? (Y/N): " CONFIRM
+        if [[ $CONFIRM == [yY] || $CONFIRM == [yY][eE][sS] ]]
+        then
+            echo -n "Cleaning... "
+            yes | clean_image > /dev/null
+            echo "done."
+        else
+            exit
+        fi
+    fi
 
     # download packages into ./pkgs directory
     download_pkgs
@@ -169,27 +185,26 @@ function init_image {
     losetup $LOOP $LFS_IMG
 
     # partition the device
-FDISK_STR="
-g       # create GPT
-n       # new partition
-        # default 1st partition
-        # default start sector (2048)
-+512M   # 512 MiB
-t       # modify parition type
-uefi    # EFI type
-n       # new partition
-        # default 2nd partition
-        # default start sector
-        # default end sector
-w       # write to device and quit
-"
-    FDISK_STR=$(echo "$FDISK_STR" | sed 's/ *#.*//g')
+    FDISK_STR="
+    g       # create GPT
+    n       # new partition
+            # default 1st partition
+            # default start sector (2048)
+    +512M   # 512 MiB
+    t       # modify parition type
+    uefi    # EFI type
+    n       # new partition
+            # default 2nd partition
+            # default start sector
+            # default end sector
+    w       # write to device and quit
+    "
+    FDISK_STR=$(echo "$FDISK_STR" | sed 's/ *//g' | sed 's/#.*//')
+
     # fdisk fails to get kernel to re-read the partition table
     # so ignore non-zero exit code, and manually re-read
     set +e
-fdisk $LOOP &>> /dev/null <<EOF
-$FDISK_STR
-EOF
+    echo "$FDISK_STR" | fdisk $LOOP &> /dev/null
     set -e
 
     # reattach loop device to re-read partition table
@@ -322,6 +337,12 @@ function download_pkgs {
 }
 
 function mount_image {
+    if [ $UID -ne 0 ]
+    then
+        echo "ERROR: must be run as root."
+        exit 1
+    fi
+
     # make sure everything is unmounted first
     unmount_image
 
@@ -347,6 +368,12 @@ function mount_image {
 }
 
 function unmount_image {
+    if [ $UID -ne 0 ]
+    then
+        echo "ERROR: must be run as root."
+        exit 1
+    fi
+
     # unmount everything
     local MOUNTED_LOCS=$(mount | grep $LFS)
     if [ -n "$MOUNTED_LOCS" ];
@@ -424,6 +451,12 @@ function build_package {
 }
 
 function build_phase {
+    if [ $UID -ne 0 ]
+    then
+        echo "ERROR: must be run as root."
+        exit 1
+    fi
+
     PHASE=$1
 
     if [ -n "$STARTPHASE" ]
@@ -489,6 +522,12 @@ function build_phase {
 }
 
 function clean_image {
+    if [ $UID -ne 0 ]
+    then
+        echo "ERROR: must be run as root."
+        exit 1
+    fi
+
     unmount_image
 
     # delete img
@@ -522,12 +561,12 @@ VERBOSE=false
 
 while [ $# -gt 0 ]; do
   case $1 in
+    -v|--version)
+      echo $LFS_VERSION
+      exit
+      ;;
     -V|--verbose)
       VERBOSE=true
-      shift
-      ;;
-    -o|--one-off)
-      ONEOFF=true
       shift
       ;;
     -e|--check)
@@ -538,7 +577,12 @@ while [ $# -gt 0 ]; do
       download_pkgs
       exit
       ;;
-   -p|--start-phase)
+    -i|--init)
+      init_image
+      unmount_image
+      exit
+      ;;
+    -p|--start-phase)
       STARTPHASE="$2"
       shift
       shift
@@ -546,6 +590,10 @@ while [ $# -gt 0 ]; do
     -a|--start-package)
       STARTPKG="$2"
       shift
+      shift
+      ;;
+    -o|--one-off)
+      ONEOFF=true
       shift
       ;;
     -k|--kernel-config)
@@ -563,10 +611,6 @@ while [ $# -gt 0 ]; do
       ;;
     -c|--clean)
       clean_image
-      exit
-      ;;
-    -v|--version)
-      echo $LFS_VERSION
       exit
       ;;
     -h|--help)
@@ -619,19 +663,6 @@ then
     fi
     mount_image
 else
-    if [ -f $LFS_IMG ]
-    then
-        echo "WARNING: $LFS_IMG is present. If you start from the beginning, this file will be deleted."
-        read -p "Continue? (Y/N): " CONFIRM
-        if [[ $CONFIRM == [yY] || $CONFIRM == [yY][eE][sS] ]]
-        then
-            echo -n "Cleaning... "
-            yes | clean_image > /dev/null
-            echo "done."
-        else
-            exit
-        fi
-    fi
     init_image
 fi
 
