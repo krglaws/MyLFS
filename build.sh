@@ -19,6 +19,8 @@ function usage {
          "\n" \
          "        -V|--verbose        The script will output more information where applicable.\n" \
          "\n" \
+         "        -f|--uefi           Build LFS with UEFI boot instead of the default BIOS boot.\n" \
+         "\n" \
          "        -e|--check          Output LFS dependency version information, then exit.\n" \
          "                            It is recommended that you run this before proceeding\n" \
          "                            with the rest of the build.\n" \
@@ -180,53 +182,63 @@ function init_image {
     # create image file
     fallocate -l$LFS_IMG_SIZE $LFS_IMG
 
+    # hopefully banish any ghost images
+    dd if=/dev/zero of=$LFS_IMG count=1 conv=notrunc &> /dev/null
+
     # attach loop device
     LOOP=$(losetup -f)
     losetup $LOOP $LFS_IMG
 
     # partition the device
-    FDISK_STR="
-    g       # create GPT
-    n       # new partition
-            # default 1st partition
-            # default start sector (2048)
-    +512M   # 512 MiB
-    t       # modify parition type
-    uefi    # EFI type
-    n       # new partition
-            # default 2nd partition
-            # default start sector
-            # default end sector
-    w       # write to device and quit
-    "
-    FDISK_STR=$(echo "$FDISK_STR" | sed 's/ *//g' | sed 's/#.*//')
+    FDISK_INSTR=$FDISK_INSTR_BIOS
+    if $UEFI
+    then
+        FDISK_INSTR=$FDISK_INSTR_UEFI
+    fi
+
+    # remove spaces and comments
+    FDISK_INSTR=$(echo "$FDISK_INSTR" | sed 's/#.*//')
 
     # fdisk fails to get kernel to re-read the partition table
     # so ignore non-zero exit code, and manually re-read
     set +e
-    echo "$FDISK_STR" | fdisk $LOOP &> /dev/null
+    echo "$FDISK_INSTR" | fdisk $LOOP &> /dev/null
     set -e
 
     # reattach loop device to re-read partition table
     losetup -d $LOOP
     sleep 1 # give the kernel a sec
     losetup -P $LOOP $LFS_IMG
-    LOOP_P1=${LOOP}p1
-    LOOP_P2=${LOOP}p2
 
-    # setup root partition
-    mkfs -t $LFS_FS $LOOP_P2 &> /dev/null
-    mkdir -p $LFS
-    mount $LOOP_P2 $LFS
+    if $UEFI
+    then
+        LOOP_P1=${LOOP}p1
+        LOOP_P2=${LOOP}p2
 
-    # setup EFI partition
-    mkfs.vfat $LOOP_P1 &> /dev/null
-    mkdir -p $LFS/boot/efi
-    mount -t vfat $LOOP_P1 $LFS/boot/efi
+        # setup root partition
+        mkfs -t $LFS_FS $LOOP_P2 &> /dev/null
+        mkdir -p $LFS
+        mount $LOOP_P2 $LFS
 
-    # label the partitions
-    dosfslabel $LOOP_P1 $LFSEFILABEL &> /dev/null
-    e2label $LOOP_P2 $LFSROOTLABEL 
+        # setup EFI partition
+        mkfs.vfat $LOOP_P1 &> /dev/null
+        mkdir -p $LFS/boot/efi
+        mount -t vfat $LOOP_P1 $LFS/boot/efi
+
+        # label the partitions
+        dosfslabel $LOOP_P1 $LFSEFILABEL &> /dev/null
+        e2label $LOOP_P2 $LFSROOTLABEL
+    else
+        LOOP_P1=${LOOP}p1
+
+        # setup root partition
+        mkfs -t $LFS_FS $LOOP_P1 &> /dev/null
+        mkdir -p $LFS
+        mount $LOOP_P1 $LFS
+
+        e2label $LOOP_P1 $LFSROOTLABEL
+    fi
+    rm -rf $LFS/lost+found
 
     echo "done."
 
@@ -274,8 +286,15 @@ function init_image {
 
     # install templates
     install_template ./templates/boot__grub__grub.cfg LFSROOTLABEL
-    install_template ./templates/etc__fstab LFSROOTLABEL LFSEFILABEL LFSFSTYPE
     install_template ./templates/etc__hosts LFSHOSTNAME
+
+    if $UEFI
+    then
+        install_template ./templates/etc__fstab LFSROOTLABEL LFSEFILABEL LFSFSTYPE
+    else
+        install_template ./templates/etc__fstab LFSROOTLABEL LFSFSTYPE
+        sed -i "s/.*LFSEFILABEL.*//" $LFS/etc/fstab 
+    fi
 
     # make special device files
     mknod -m 600 $LFS/dev/console c 5 1
@@ -350,14 +369,23 @@ function mount_image {
     LOOP=$(losetup -f)
     LOOP_P1=${LOOP}p1
     LOOP_P2=${LOOP}p2
-    losetup -P $LOOP $LFS_IMG
-    sleep 1 # give the kernel a sec
+ 
+    if $UEFI
+    then
+        losetup -P $LOOP $LFS_IMG
+        sleep 1 # give the kernel a sec
 
-    # mount root fs
-    mount $LOOP_P2 $LFS
+        # mount root fs
+        mount $LOOP_P2 $LFS
 
-    # mount boot partition
-    mount -t vfat $LOOP_P1 $LFS/boot/efi
+        # mount boot partition
+        mount -t vfat $LOOP_P1 $LFS/boot/efi
+    else
+        losetup -P $LOOP $LFS_IMG
+        sleep 1
+
+        mount $LOOP_P1 $LFS
+    fi
 
     # mount stuff from the host onto the target disk
     mount --bind /dev $LFS/dev
@@ -558,6 +586,7 @@ source ./config.sh
 
 ONEOFF=false
 VERBOSE=false
+UEFI=false
 
 while [ $# -gt 0 ]; do
   case $1 in
@@ -567,6 +596,10 @@ while [ $# -gt 0 ]; do
       ;;
     -V|--verbose)
       VERBOSE=true
+      shift
+      ;;
+    -f|--uefi)
+      UEFI=true
       shift
       ;;
     -e|--check)
