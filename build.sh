@@ -29,7 +29,7 @@ function usage {
          "                            exit.\n" \
          "\n" \
          "        -i|--init           Create the .img file, partition it, setup basic directory\n" \
-         "                            structure, then exit." \
+         "                            structure, then exit.\n" \
          "\n" \
          "        -p|--start-phase\n" \
          "        -a|--start-package  Select a phase and optionally a package\n" \
@@ -135,15 +135,15 @@ function check_dependencies {
 }
 
 function install_static {
-    FILENAME=$1
-    FULLPATH="$LFS/$(basename $FILENAME | sed 's/__/\//g')"
+    local FILENAME=$1
+    local FULLPATH="$LFS/$(basename $FILENAME | sed 's/__/\//g')"
     mkdir -p $(dirname $FULLPATH)
     cp $FILENAME $FULLPATH
 }
 
 function install_template {
-    FILENAME=$1
-    FULLPATH="$LFS/$(basename $FILENAME | sed 's/__/\//g')"
+    local FILENAME=$1
+    local FULLPATH="$LFS/$(basename $FILENAME | sed 's/__/\//g')"
     mkdir -p $(dirname $FULLPATH)
     cp $FILENAME $FULLPATH
     shift
@@ -179,31 +179,41 @@ function init_image {
 
     echo -n "Creating image file... "
 
+    trap "echo 'init failed.' && exit 1" ERR
+
+    if $VERBOSE
+    then
+        set -x
+    fi
+
     # create image file
     fallocate -l$LFS_IMG_SIZE $LFS_IMG
 
     # hopefully banish any ghost images
-    dd if=/dev/zero of=$LFS_IMG count=1 conv=notrunc &> /dev/null
+    dd if=/dev/zero of=$LFS_IMG bs=1M count=1 conv=notrunc &> /dev/null
 
     # attach loop device
-    LOOP=$(losetup -f)
+    export LOOP=$(losetup -f)
     losetup $LOOP $LFS_IMG
 
     # partition the device
-    FDISK_INSTR=$FDISK_INSTR_BIOS
     if $UEFI
     then
         FDISK_INSTR=$FDISK_INSTR_UEFI
+    else
+        FDISK_INSTR=$FDISK_INSTR_BIOS
     fi
 
     # remove spaces and comments
-    FDISK_INSTR=$(echo "$FDISK_INSTR" | sed 's/#.*//')
+    FDISK_INSTR=$(echo "$FDISK_INSTR" | sed 's/ *#.*//')
 
     # fdisk fails to get kernel to re-read the partition table
     # so ignore non-zero exit code, and manually re-read
+    trap - ERR
     set +e
     echo "$FDISK_INSTR" | fdisk $LOOP &> /dev/null
     set -e
+    trap "echo 'init failed.' && unmount_image && exit 1" ERR
 
     # reattach loop device to re-read partition table
     losetup -d $LOOP
@@ -285,9 +295,7 @@ function init_image {
     fi
 
     # install templates
-    install_template ./templates/boot__grub__grub.cfg LFSROOTLABEL
     install_template ./templates/etc__hosts LFSHOSTNAME
-
     if $UEFI
     then
         install_template ./templates/etc__fstab LFSROOTLABEL LFSEFILABEL LFSFSTYPE
@@ -317,13 +325,16 @@ function init_image {
       mkdir -p $LFS/$(readlink $LFS/dev/shm)
     fi
 
+    set +x
+
+    trap - ERR
+
     echo "done."
 }
 
 function cleanup_cancelled_download {
     local PKG=$PACKAGE_DIR/$(basename $1)
-    [ -f $PKG ] && rm $PKG
-    exit
+    [ -f $PKG ] && rm -f $PKG
 }
 
 function download_pkgs {
@@ -334,7 +345,7 @@ function download_pkgs {
 
     for url in $PACKAGE_URLS
     do
-        trap "{ cleanup_cancelled_download $url; }" ERR SIGINT
+        trap "{ cleanup_cancelled_download $url; exit }" ERR SIGINT
 
         $VERBOSE && echo -n "Downloading '$url'... "
         if ! echo $ALREADY_DOWNLOADED | grep $(basename $url) > /dev/null
@@ -366,7 +377,7 @@ function mount_image {
     unmount_image
 
     # attach loop device
-    LOOP=$(losetup -f)
+    export LOOP=$(losetup -f)
     LOOP_P1=${LOOP}p1
     LOOP_P2=${LOOP}p2
  
@@ -443,15 +454,10 @@ function build_package {
     pushd $LFS > /dev/null
     if $CHROOT
     then
-        if ! chroot "$LFS" /usr/bin/env -i \
+        if ! chroot "$LFS" /usr/bin/env \
                 HOME=/root \
                 TERM=$TERM \
-                PATH=/usr/bin:/usr/sbin &> $LOG_FILE \
-                MAKEFLAGS=$MAKEFLAGS \
-                ROOT_PASSWD=$ROOT_PASSWD \
-                RUN_TESTS=$RUN_TESTS \
-                KERNELVERS=$KERNELVERS \
-                $(cat $PACKAGE_LIST) \
+                PATH=/usr/bin:/usr/sbin \
                 /usr/bin/bash +h -c "$BUILD_INSTR" &> $LOG_FILE
         then
             echo -e "\nERROR: $NAME Phase $PHASE failed:"
@@ -510,6 +516,11 @@ function build_phase {
     if [ $PHASE -gt 2 ]
     then
         CHROOT=true
+    fi
+
+    if [ $PHASE -eq 5 ]
+    then
+        PHASE=5_$({ $UEFI && echo "uefi"; } || echo "bios")
     fi
 
     while read pkg
@@ -572,7 +583,7 @@ function clean_image {
     # delete logs
     if [ -n "$(ls ./logs)" ]
     then
-        rm -rf ./logs/*log ./logs/*gz
+        rm -rf ./logs/*
     fi
 }
 
@@ -586,7 +597,9 @@ source ./config.sh
 
 ONEOFF=false
 VERBOSE=false
-UEFI=false
+
+# exported because it's used by linux.sh
+export UEFI=false
 
 while [ $# -gt 0 ]; do
   case $1 in
@@ -659,7 +672,7 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -n "$STARTPHASE" ] &&
-[ "$STARTPHASE" != 1 -a "$STARTPHASE" != 2 -a "$STARTPHASE" != 3 -a "$STARTPHASE" != 4 ]
+[ "$STARTPHASE" != 1 -a "$STARTPHASE" != 2 -a "$STARTPHASE" != 3 -a "$STARTPHASE" != 4 -a "$STARTPHASE" != 5 ]
 then
     echo "ERROR: phase '$STARTPHASE' does not exist"
     exit 1
@@ -704,7 +717,8 @@ CONFIG_SITE=$LFS/usr/share/config.site
 LC_ALL=POSIX
 export LC_ALL PATH CONFIG_SITE
 
-trap "{ unmount_image; exit 1; }" ERR SIGINT
+trap "echo 'build failed.' && cd $FULLPATH && unmount_image && exit 1" ERR
+trap "echo 'build cancelled.' && cd $FULLPATH && unmount_image && exit" SIGINT
 
 # ###########
 # Start build
@@ -729,7 +743,11 @@ $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
 
 build_phase 4
 
-# phase 4 cleanup
+$ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
+
+build_phase 5
+
+# final cleanup
 rm -rf $LFS/tmp/*
 find $LFS/usr/lib $LFS/usr/libexec -name \*.la -delete
 find $LFS/usr -depth -name $LFS_TGT\* | xargs rm -rf

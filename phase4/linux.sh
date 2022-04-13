@@ -1,4 +1,15 @@
 # LINUX Phase 4
+
+function config_on {
+    local UNCOMMENTED="^${1}=.*\$"
+    local COMMENTED="^# ${1} .*\$"
+    sed -E -i "s/${UCOMMENTED}|${COMMENTED}/${1}=y/" ./.config
+}
+
+function config_off {
+    sed -i "s/^${1}=.*$//" ./.config
+}
+
 CONFIGFILE=config-$KERNELVERS
 make mrproper
 
@@ -8,6 +19,12 @@ then
 else
     # if kernel config not provided, use default architecture config
     make defconfig
+
+    config_off CONFIG_IKHEADERS
+    config_on  CONFIG_FB
+    config_off CONFIG_UEVENT_HELPER
+    config_on  CONFIG_DEVTMPFS
+    config_on  CONFIG_MODULES
 fi
 
 make

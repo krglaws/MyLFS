@@ -28,3 +28,27 @@ then
     exit -1
 fi
 
+cat > /boot/grub/grub.cfg <<EOF
+set default=0
+set timeout=5
+
+insmod part_gpt
+insmod $LFS_FS
+set root=(hd0,2)
+
+if loadfont /boot/grub/fonts/unicode.pf2; then
+  set gfxmode=auto
+  insmod all_video
+  terminal_output gfxterm
+fi
+
+menuentry "GNU/Linux, Linux 5.16.9-lfs-11.1"  {
+  search --no-floppy --label $LFSROOTLABEL --set=root
+  linux   /boot/vmlinuz-5.16.9-lfs-11.1 root=LABEL=$LFSROOTLABEL ro
+}
+
+menuentry "Firmware Setup" {
+  fwsetup
+}
+EOF
+
