@@ -54,7 +54,6 @@ diffutils
 gawk
 findutils
 groff
-# Skipping GRUB MBR build since we are using UEFI
 gzip
 iproute2
 kbd
@@ -73,11 +72,4 @@ sysklogd
 sysvinit
 lfsbootscripts
 linux
-
-# UEFI Boot Dependencies
-popt
-mandoc
-efivar
-efibootmgr
-grub
 

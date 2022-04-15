@@ -19,6 +19,8 @@ function usage {
          "\n" \
          "        -V|--verbose        The script will output more information where applicable.\n" \
          "\n" \
+         "        -f|--uefi           Build LFS with UEFI boot instead of the default BIOS boot.\n" \
+         "\n" \
          "        -e|--check          Output LFS dependency version information, then exit.\n" \
          "                            It is recommended that you run this before proceeding\n" \
          "                            with the rest of the build.\n" \
@@ -27,7 +29,7 @@ function usage {
          "                            exit.\n" \
          "\n" \
          "        -i|--init           Create the .img file, partition it, setup basic directory\n" \
-         "                            structure, then exit." \
+         "                            structure, then exit.\n" \
          "\n" \
          "        -p|--start-phase\n" \
          "        -a|--start-package  Select a phase and optionally a package\n" \
@@ -133,15 +135,15 @@ function check_dependencies {
 }
 
 function install_static {
-    FILENAME=$1
-    FULLPATH="$LFS/$(basename $FILENAME | sed 's/__/\//g')"
+    local FILENAME=$1
+    local FULLPATH="$LFS/$(basename $FILENAME | sed 's/__/\//g')"
     mkdir -p $(dirname $FULLPATH)
     cp $FILENAME $FULLPATH
 }
 
 function install_template {
-    FILENAME=$1
-    FULLPATH="$LFS/$(basename $FILENAME | sed 's/__/\//g')"
+    local FILENAME=$1
+    local FULLPATH="$LFS/$(basename $FILENAME | sed 's/__/\//g')"
     mkdir -p $(dirname $FULLPATH)
     cp $FILENAME $FULLPATH
     shift
@@ -177,56 +179,76 @@ function init_image {
 
     echo -n "Creating image file... "
 
+    trap "echo 'init failed.' && exit 1" ERR
+
+    if $VERBOSE
+    then
+        set -x
+    fi
+
     # create image file
     fallocate -l$LFS_IMG_SIZE $LFS_IMG
 
+    # hopefully banish any ghost images
+    dd if=/dev/zero of=$LFS_IMG bs=1M count=1 conv=notrunc &> /dev/null
+
     # attach loop device
-    LOOP=$(losetup -f)
+    export LOOP=$(losetup -f)
     losetup $LOOP $LFS_IMG
 
     # partition the device
-    FDISK_STR="
-    g       # create GPT
-    n       # new partition
-            # default 1st partition
-            # default start sector (2048)
-    +512M   # 512 MiB
-    t       # modify parition type
-    uefi    # EFI type
-    n       # new partition
-            # default 2nd partition
-            # default start sector
-            # default end sector
-    w       # write to device and quit
-    "
-    FDISK_STR=$(echo "$FDISK_STR" | sed 's/ *//g' | sed 's/#.*//')
+    if $UEFI
+    then
+        FDISK_INSTR=$FDISK_INSTR_UEFI
+    else
+        FDISK_INSTR=$FDISK_INSTR_BIOS
+    fi
+
+    # remove spaces and comments
+    FDISK_INSTR=$(echo "$FDISK_INSTR" | sed 's/ *#.*//')
 
     # fdisk fails to get kernel to re-read the partition table
     # so ignore non-zero exit code, and manually re-read
+    trap - ERR
     set +e
-    echo "$FDISK_STR" | fdisk $LOOP &> /dev/null
+    echo "$FDISK_INSTR" | fdisk $LOOP &> /dev/null
     set -e
+    trap "echo 'init failed.' && unmount_image && exit 1" ERR
 
     # reattach loop device to re-read partition table
     losetup -d $LOOP
     sleep 1 # give the kernel a sec
     losetup -P $LOOP $LFS_IMG
-    LOOP_P1=${LOOP}p1
-    LOOP_P2=${LOOP}p2
 
-    # setup root partition
-    mkfs -t $LFS_FS $LOOP_P2 &> /dev/null
-    mkdir -p $LFS
-    mount $LOOP_P2 $LFS
+    if $UEFI
+    then
+        LOOP_P1=${LOOP}p1
+        LOOP_P2=${LOOP}p2
 
-    # setup EFI partition
-    mkfs.vfat $LOOP_P1 &> /dev/null
-    mkdir -p $LFS/boot/efi
-    mount -t vfat $LOOP_P1 $LFS/boot/efi
+        # setup root partition
+        mkfs -t $LFS_FS $LOOP_P2 &> /dev/null
+        mkdir -p $LFS
+        mount $LOOP_P2 $LFS
 
-    # label the partitions
-    dosfslabel $LOOP_P1 $LFSEFILABEL &> /dev/null
-    e2label $LOOP_P2 $LFSROOTLABEL 
+        # setup EFI partition
+        mkfs.vfat $LOOP_P1 &> /dev/null
+        mkdir -p $LFS/boot/efi
+        mount -t vfat $LOOP_P1 $LFS/boot/efi
+
+        # label the partitions
+        dosfslabel $LOOP_P1 $LFSEFILABEL &> /dev/null
+        e2label $LOOP_P2 $LFSROOTLABEL
+    else
+        LOOP_P1=${LOOP}p1
+
+        # setup root partition
+        mkfs -t $LFS_FS $LOOP_P1 &> /dev/null
+        mkdir -p $LFS
+        mount $LOOP_P1 $LFS
+
+        e2label $LOOP_P1 $LFSROOTLABEL
+    fi
+    rm -rf $LFS/lost+found
 
     echo "done."
 
@@ -273,9 +295,14 @@ function init_image {
     fi
 
     # install templates
-    install_template ./templates/boot__grub__grub.cfg LFSROOTLABEL
-    install_template ./templates/etc__fstab LFSROOTLABEL LFSEFILABEL LFSFSTYPE
     install_template ./templates/etc__hosts LFSHOSTNAME
+    if $UEFI
+    then
+        install_template ./templates/etc__fstab LFSROOTLABEL LFSEFILABEL LFSFSTYPE
+    else
+        install_template ./templates/etc__fstab LFSROOTLABEL LFSFSTYPE
+        sed -i "s/.*LFSEFILABEL.*//" $LFS/etc/fstab 
+    fi
 
     # make special device files
     mknod -m 600 $LFS/dev/console c 5 1
@@ -298,13 +325,16 @@ function init_image {
       mkdir -p $LFS/$(readlink $LFS/dev/shm)
     fi
 
+    set +x
+
+    trap - ERR
+
     echo "done."
 }
 
 function cleanup_cancelled_download {
     local PKG=$PACKAGE_DIR/$(basename $1)
-    [ -f $PKG ] && rm $PKG
-    exit
+    [ -f $PKG ] && rm -f $PKG
 }
 
 function download_pkgs {
@@ -315,7 +345,7 @@ function download_pkgs {
 
     for url in $PACKAGE_URLS
     do
-        trap "{ cleanup_cancelled_download $url; }" ERR SIGINT
+        trap "{ cleanup_cancelled_download $url; exit }" ERR SIGINT
 
         $VERBOSE && echo -n "Downloading '$url'... "
         if ! echo $ALREADY_DOWNLOADED | grep $(basename $url) > /dev/null
@@ -347,17 +377,26 @@ function mount_image {
     unmount_image
 
     # attach loop device
-    LOOP=$(losetup -f)
+    export LOOP=$(losetup -f)
     LOOP_P1=${LOOP}p1
     LOOP_P2=${LOOP}p2
-    losetup -P $LOOP $LFS_IMG
-    sleep 1 # give the kernel a sec
+ 
+    if $UEFI
+    then
+        losetup -P $LOOP $LFS_IMG
+        sleep 1 # give the kernel a sec
 
-    # mount root fs
-    mount $LOOP_P2 $LFS
+        # mount root fs
+        mount $LOOP_P2 $LFS
 
-    # mount boot partition
-    mount -t vfat $LOOP_P1 $LFS/boot/efi
+        # mount boot partition
+        mount -t vfat $LOOP_P1 $LFS/boot/efi
+    else
+        losetup -P $LOOP $LFS_IMG
+        sleep 1
+
+        mount $LOOP_P1 $LFS
+    fi
 
     # mount stuff from the host onto the target disk
     mount --bind /dev $LFS/dev
@@ -415,15 +454,10 @@ function build_package {
     pushd $LFS > /dev/null
     if $CHROOT
     then
-        if ! chroot "$LFS" /usr/bin/env -i \
+        if ! chroot "$LFS" /usr/bin/env \
                 HOME=/root \
                 TERM=$TERM \
-                PATH=/usr/bin:/usr/sbin &> $LOG_FILE \
-                MAKEFLAGS=$MAKEFLAGS \
-                ROOT_PASSWD=$ROOT_PASSWD \
-                RUN_TESTS=$RUN_TESTS \
-                KERNELVERS=$KERNELVERS \
-                $(cat $PACKAGE_LIST) \
+                PATH=/usr/bin:/usr/sbin \
                 /usr/bin/bash +h -c "$BUILD_INSTR" &> $LOG_FILE
         then
             echo -e "\nERROR: $NAME Phase $PHASE failed:"
@@ -482,6 +516,11 @@ function build_phase {
     if [ $PHASE -gt 2 ]
     then
         CHROOT=true
+    fi
+
+    if [ $PHASE -eq 5 ]
+    then
+        PHASE=5_$({ $UEFI && echo "uefi"; } || echo "bios")
     fi
 
     while read pkg
@@ -544,7 +583,7 @@ function clean_image {
     # delete logs
     if [ -n "$(ls ./logs)" ]
     then
-        rm -rf ./logs/*log ./logs/*gz
+        rm -rf ./logs/*
     fi
 }
 
@@ -559,6 +598,9 @@ source ./config.sh
 ONEOFF=false
 VERBOSE=false
 
+# exported because it's used by linux.sh
+export UEFI=false
+
 while [ $# -gt 0 ]; do
   case $1 in
     -v|--version)
@@ -567,6 +609,10 @@ while [ $# -gt 0 ]; do
       ;;
     -V|--verbose)
       VERBOSE=true
+      shift
+      ;;
+    -f|--uefi)
+      UEFI=true
       shift
       ;;
     -e|--check)
@@ -626,7 +672,7 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -n "$STARTPHASE" ] &&
-[ "$STARTPHASE" != 1 -a "$STARTPHASE" != 2 -a "$STARTPHASE" != 3 -a "$STARTPHASE" != 4 ]
+[ "$STARTPHASE" != 1 -a "$STARTPHASE" != 2 -a "$STARTPHASE" != 3 -a "$STARTPHASE" != 4 -a "$STARTPHASE" != 5 ]
 then
     echo "ERROR: phase '$STARTPHASE' does not exist"
     exit 1
@@ -671,7 +717,8 @@ CONFIG_SITE=$LFS/usr/share/config.site
 LC_ALL=POSIX
 export LC_ALL PATH CONFIG_SITE
 
-trap "{ unmount_image; exit 1; }" ERR SIGINT
+trap "echo 'build failed.' && cd $FULLPATH && unmount_image && exit 1" ERR
+trap "echo 'build cancelled.' && cd $FULLPATH && unmount_image && exit" SIGINT
 
 # ###########
 # Start build
@@ -696,7 +743,11 @@ $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
 
 build_phase 4
 
-# phase 4 cleanup
+$ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
+
+build_phase 5
+
+# final cleanup
 rm -rf $LFS/tmp/*
 find $LFS/usr/lib $LFS/usr/libexec -name \*.la -delete
 find $LFS/usr -depth -name $LFS_TGT\* | xargs rm -rf

@@ -23,13 +23,38 @@ export LFSEFILABEL=LFSEFI
 export LFSFSTYPE=ext4
 export KERNELVERS=5.16.9
 
-KEYS="MAKEFLAGS PACKAGE_LIST PACKAGE_DIR LOG_DIR KEEP_LOGS"\
-" LFS LFS_TGT LFS_FS LFS_IMG LFS_IMG_SIZE ROOT_PASSWD RUN_TESTS TESTLOG_DIR"\
-" LFSHOSTNAME LFSROOTLABEL LFSEFILABEL LFSFSTYPE KERNELVERS"
+export FDISK_INSTR_BIOS="
+o       # create DOS partition table
+n       # new partition
+        # default partition type (primary)
+        # default partition number (1)
+        # default partition start
+        # default partition end (max)
+w       # write to device and quit
+"
+
+export FDISK_INSTR_UEFI="
+g       # create GPT
+n       # new partition
+        # default 1st partition
+        # default start sector (2048)
++512M   # 512 MiB
+t       # modify parition type
+uefi    # EFI type
+n       # new partition
+        # default 2nd partition
+        # default start sector
+        # default end sector
+w       # write to device and quit
+"
+
+KEYS="MAKEFLAGS PACKAGE_LIST PACKAGE_DIR LOG_DIR KEEP_LOGS LFS LFS_TGT"\
+" LFS_FS LFS_IMG LFS_IMG_SIZE ROOT_PASSWD RUN_TESTS TESTLOG_DIR LFSHOSTNAME"\
+" LFSROOTLABEL LFSEFILABEL LFSFSTYPE KERNELVERS FDISK_INSTR_BIOS FDISK_INSTR_UEFI"
 
 for KEY in $KEYS
 do
-    if [ -z ${!KEY} ]
+    if [ -z "${!KEY}" ]
     then
         echo "ERROR: '$KEY' config is not set."
         exit -1
