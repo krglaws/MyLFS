@@ -373,6 +373,12 @@ function mount_image {
         exit 1
     fi
 
+    if [ ! -f $LFS_IMG ]
+    then
+        echo "ERROR: $LFS_IMG not found - cannot mount."
+        exit 1
+    fi
+
     # make sure everything is unmounted first
     unmount_image
 
@@ -594,12 +600,24 @@ function clean_image {
 
 cd $(dirname $0)
 source ./config.sh
+while read pkg;
+do
+    eval $pkg
+    export $(echo $pkg | cut -d"=" -f1)
+done < $PACKAGE_LIST
 
-ONEOFF=false
+
 VERBOSE=false
-
-# exported because it's used by linux.sh
-export UEFI=false
+CHECKDEPS=false
+DOWNLOAD=false
+INIT=false
+ONEOFF=false
+FOUNDSTARTPKG=false
+FOUNDSTARTPHASE=false
+MOUNT=false
+UNMOUNT=false
+CLEAN=false
+export UEFI=false # exported for linux.sh
 
 while [ $# -gt 0 ]; do
   case $1 in
@@ -616,17 +634,16 @@ while [ $# -gt 0 ]; do
       shift
       ;;
     -e|--check)
-      check_dependencies
-      exit
+      CHECKDEPS=true
+      shift
       ;;
     -d|--download-pkgs)
-      download_pkgs
-      exit
+      DOWNLOAD=true
+      shift
       ;;
     -i|--init)
-      init_image
-      unmount_image
-      exit
+      INIT=true
+      shift
       ;;
     -p|--start-phase)
       STARTPHASE="$2"
@@ -648,16 +665,16 @@ while [ $# -gt 0 ]; do
       shift
       ;;
     -m|--mount)
-      mount_image
-      exit
+      MOUNT=true
+      shift
       ;;
     -u|--umount)
-      unmount_image
-      exit
+      UNMOUNT=true
+      shift
       ;;
     -c|--clean)
-      clean_image
-      exit
+      CLEAN=true
+      shift
       ;;
     -h|--help)
       usage
@@ -669,6 +686,22 @@ while [ $# -gt 0 ]; do
       exit 1
       ;;
   esac
+done
+
+OPCOUNT=0
+for OP in CHECKDEPS DOWNLOAD INIT STARTPHASE MOUNT UNMOUNT CLEAN
+do
+    OP="${!OP}"
+    if [ -n "$OP" -a "$OP" != "false" ]
+    then
+        OPCOUNT=$((OPCOUNT+1))
+    fi
+
+    if [ $OPCOUNT -gt 1 ]
+    then
+        echo "ERROR: too many options."
+        exit 1
+    fi
 done
 
 if [ -n "$STARTPHASE" ] &&
@@ -686,25 +719,27 @@ then
     exit 1
 fi
 
-FOUNDSTARTPKG=false
-FOUNDSTARTPHASE=false
 
+# ###########
+# Start build
+# ~~~~~~~~~~~
 
-# #################
-# Prepare for build
-# ~~~~~~~~~~~~~~~~~
+trap "echo 'build failed.' && cd $FULLPATH && unmount_image && exit 1" ERR
+trap "echo 'build cancelled.' && cd $FULLPATH && unmount_image && exit" SIGINT
 
-while read pkg;
-do
-    eval $pkg
-    export $(echo $pkg | cut -d"=" -f1)
-done < $PACKAGE_LIST
+# Perform single operations
+$CHECKDEPS && check_dependencies && exit
+$DOWNLOAD && download_pkgs && exit
+$INIT && init_image && exit
+$MOUNT && mount_image && exit
+$UNMOUNT && unmount_image && exit
+$CLEAN && clean_image && exit
 
 if [ -n "$STARTPHASE" ]
 then
     if [ ! -f $LFS_IMG ]
     then
-        echo "ERROR: $LFS_IMG is not present - cannot start from phase $STARTPHASE."
+        echo "ERROR: $LFS_IMG not found - cannot start from phase $STARTPHASE."
         exit 1
     fi
     mount_image
@@ -716,13 +751,6 @@ PATH=$LFS/tools/bin:$PATH
 CONFIG_SITE=$LFS/usr/share/config.site
 LC_ALL=POSIX
 export LC_ALL PATH CONFIG_SITE
-
-trap "echo 'build failed.' && cd $FULLPATH && unmount_image && exit 1" ERR
-trap "echo 'build cancelled.' && cd $FULLPATH && unmount_image && exit" SIGINT
-
-# ###########
-# Start build
-# ~~~~~~~~~~~
 
 build_phase 1
 
