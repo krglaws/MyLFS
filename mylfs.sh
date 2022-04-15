@@ -9,10 +9,15 @@ LFS_VERSION=11.1
 
 function usage {
     echo -e "Welcome to MyLFS.\n" \
-         "    When running the script without arguments, it will attempt to build the\n" \
-         "entire project from beginning to end. Before starting any part of the build,\n" \
+         "    If you would like to build Linux From Scratch from beginning to end, just\n" \
+         "specify --build-all on the commandline. Otherwise, you can build LFS one step\n" \
+         "at a time by using the various arguments outlined below. Before building anything\n" \
          "however, you should be sure to run the script with '--check' to verify the\n" \
          "dependencies on your system.\n" \
+         "\n" \
+         "WARNING: Most of the functionality in this script requires root privilages,\n" \
+         "and involves the partitioning, mounting and unmounting of device files. Use at\n" \
+         "your own risk.\n" \
          "\n" \
          "    options: \n" \
          "        -v|--version        Print the LFS version this build is based on, then exit.\n" \
@@ -24,6 +29,8 @@ function usage {
          "        -e|--check          Output LFS dependency version information, then exit.\n" \
          "                            It is recommended that you run this before proceeding\n" \
          "                            with the rest of the build.\n" \
+         "\n" \
+         "        -b|--build-all      Run the entire script from beginning to end.\n" \
          "\n" \
          "        -d|--download-pkgs  Download all packages into the 'pkgs' directory, then\n" \
          "                            exit.\n" \
@@ -84,7 +91,7 @@ function perl_vers {
 }
 
 function check_dependencies {
-    EXIT_STATUS=0
+    local EXIT_STATUS=0
 
     if ! check_dependency bash        3.2        ; then EXIT_STATUS=1; fi
     if ! check_dependency ld          2.13.1 2.38; then EXIT_STATUS=1; fi  # binutils
@@ -189,19 +196,19 @@ function init_image {
     # create image file
     fallocate -l$LFS_IMG_SIZE $LFS_IMG
 
-    # hopefully banish any ghost images
+    # hopefully banish any ghost images (fdisk could prompt more than expected)
     dd if=/dev/zero of=$LFS_IMG bs=1M count=1 conv=notrunc &> /dev/null
 
     # attach loop device
-    export LOOP=$(losetup -f)
+    export LOOP=$(losetup -f) # export for grub.sh
     losetup $LOOP $LFS_IMG
 
     # partition the device
     if $UEFI
     then
-        FDISK_INSTR=$FDISK_INSTR_UEFI
+        local FDISK_INSTR=$FDISK_INSTR_UEFI
     else
-        FDISK_INSTR=$FDISK_INSTR_BIOS
+        local FDISK_INSTR=$FDISK_INSTR_BIOS
     fi
 
     # remove spaces and comments
@@ -222,8 +229,8 @@ function init_image {
 
     if $UEFI
     then
-        LOOP_P1=${LOOP}p1
-        LOOP_P2=${LOOP}p2
+        local LOOP_P1=${LOOP}p1
+        local LOOP_P2=${LOOP}p2
 
         # setup root partition
         mkfs -t $LFS_FS $LOOP_P2 &> /dev/null
@@ -239,7 +246,7 @@ function init_image {
         dosfslabel $LOOP_P1 $LFSEFILABEL &> /dev/null
         e2label $LOOP_P2 $LFSROOTLABEL
     else
-        LOOP_P1=${LOOP}p1
+        local LOOP_P1=${LOOP}p1
 
         # setup root partition
         mkfs -t $LFS_FS $LOOP_P1 &> /dev/null
@@ -383,9 +390,9 @@ function mount_image {
     unmount_image
 
     # attach loop device
-    export LOOP=$(losetup -f)
-    LOOP_P1=${LOOP}p1
-    LOOP_P2=${LOOP}p2
+    export LOOP=$(losetup -f) # export for grub.sh
+    local LOOP_P1=${LOOP}p1
+    local LOOP_P2=${LOOP}p2
  
     if $UEFI
     then
@@ -609,6 +616,7 @@ done < $PACKAGE_LIST
 
 VERBOSE=false
 CHECKDEPS=false
+BUILDALL=false
 DOWNLOAD=false
 INIT=false
 ONEOFF=false
@@ -635,6 +643,10 @@ while [ $# -gt 0 ]; do
       ;;
     -e|--check)
       CHECKDEPS=true
+      shift
+      ;;
+    -b|--build-all)
+      BUILDALL=true
       shift
       ;;
     -d|--download-pkgs)
@@ -689,7 +701,7 @@ while [ $# -gt 0 ]; do
 done
 
 OPCOUNT=0
-for OP in CHECKDEPS DOWNLOAD INIT STARTPHASE MOUNT UNMOUNT CLEAN
+for OP in BUILDALL CHECKDEPS DOWNLOAD INIT STARTPHASE MOUNT UNMOUNT CLEAN
 do
     OP="${!OP}"
     if [ -n "$OP" -a "$OP" != "false" ]
@@ -743,8 +755,12 @@ then
         exit 1
     fi
     mount_image
-else
+elif $BUILDALL
+then
     init_image
+else
+    usage
+    exit
 fi
 
 PATH=$LFS/tools/bin:$PATH
