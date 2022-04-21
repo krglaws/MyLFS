@@ -58,6 +58,9 @@ function usage {
          "                            the build, since the image will be automatically mounted\n" \
          "                            and then unmounted at the end.\n" \
          "\n" \
+         "        -n|--install        Specify the path to a block device on which to install the\n" \
+         "                            fully built img file.\n" \
+         "\n" \
          "        -c|--clean          This will unmount and delete the image, and clear the\n" \
          "                            logs.\n" \
          "\n" \
@@ -196,9 +199,6 @@ function init_image {
     # create image file
     fallocate -l$LFS_IMG_SIZE $LFS_IMG
 
-    # hopefully banish any ghost images (fdisk could prompt more than expected)
-    dd if=/dev/zero of=$LFS_IMG bs=1M count=1 conv=notrunc &> /dev/null
-
     # attach loop device
     export LOOP=$(losetup -f) # export for grub.sh
     losetup $LOOP $LFS_IMG
@@ -218,7 +218,7 @@ function init_image {
     # so ignore non-zero exit code, and manually re-read
     trap - ERR
     set +e
-    echo "$FDISK_INSTR" | fdisk $LOOP &> /dev/null
+    echo "$FDISK_INSTR" | fdisk --wipe always $LOOP &> /dev/null
     set -e
     trap "echo 'init failed.' && unmount_image && exit 1" ERR
 
@@ -235,7 +235,7 @@ function init_image {
         # setup root partition
         mkfs -t $LFS_FS $LOOP_P2 &> /dev/null
         mkdir -p $LFS
-        mount $LOOP_P2 $LFS
+        mount -t $LFS_FS $LOOP_P2 $LFS
 
         # setup EFI partition
         mkfs.vfat $LOOP_P1 &> /dev/null
@@ -251,7 +251,7 @@ function init_image {
         # setup root partition
         mkfs -t $LFS_FS $LOOP_P1 &> /dev/null
         mkdir -p $LFS
-        mount $LOOP_P1 $LFS
+        mount -t $LFS_FS $LOOP_P1 $LFS
 
         e2label $LOOP_P1 $LFSROOTLABEL
     fi
@@ -308,7 +308,7 @@ function init_image {
         install_template ./templates/etc__fstab LFSROOTLABEL LFSEFILABEL LFSFSTYPE
     else
         install_template ./templates/etc__fstab LFSROOTLABEL LFSFSTYPE
-        sed -i "s/.*LFSEFILABEL.*//" $LFS/etc/fstab 
+        sed -i "s/.*LFSEFILABEL.*//" $LFS/etc/fstab
     fi
 
     # make special device files
@@ -393,7 +393,7 @@ function mount_image {
     export LOOP=$(losetup -f) # export for grub.sh
     local LOOP_P1=${LOOP}p1
     local LOOP_P2=${LOOP}p2
- 
+
     if $UEFI
     then
         losetup -P $LOOP $LFS_IMG
@@ -427,7 +427,8 @@ function unmount_image {
     fi
 
     # unmount everything
-    local MOUNTED_LOCS=$(mount | grep $LFS)
+    local GREP_FOR=$({ [ -n "$INSTALL_TGT" ] && echo "$LFS\|$INSTALL_MOUNT"; } || echo "$LFS")
+    local MOUNTED_LOCS=$(mount | grep $GREP_FOR)
     if [ -n "$MOUNTED_LOCS" ];
     then
         echo "$MOUNTED_LOCS" | cut -d" " -f3 | tac | xargs umount
@@ -573,6 +574,125 @@ function build_phase {
     return 0
 }
 
+function install_image {
+    if [ $UID -ne 0 ]
+    then
+        echo "ERROR: must be run as root"
+        exit 1
+    fi
+
+    if [ ! -f $LFS_IMG ]
+    then
+        echo "ERROR: $LFS_IMG does not exist. Be sure to build LFS completely before attempting to install."
+        exit 1
+    fi
+
+    local PART_PREFIX=""
+    case "$(basename $INSTALL_TGT)" in
+      sd[a-z])
+        PART_PREFIX=""
+        ;;
+      nvme[0-9]n[1-9])
+        PART_PREFIX="p"
+        ;;
+      *)
+        echo "ERROR: Unsupported device name '$INSTALL_TGT'."
+        exit 1
+        ;;
+    esac
+
+    read -p "WARNING: This will delete all contents of the device '$INSTALL_TGT'. Continue? (Y/N): " CONFIRM
+    if [[ $CONFIRM != [yY] && $CONFIRM != [yY][eE][sS] ]]
+    then
+        echo "Cancelled."
+        exit
+    fi
+
+    echo -n "Installing LFS onto ${INSTALL_TGT}... "
+
+    if $VERBOSE
+    then
+        set -x
+    fi
+
+    # partition the device
+    if $UEFI
+    then
+        local FDISK_INSTR=$FDISK_INSTR_UEFI
+    else
+        local FDISK_INSTR=$FDISK_INSTR_BIOS
+    fi
+
+    # remove spaces and comments
+    FDISK_INSTR=$(echo "$FDISK_INSTR" | sed 's/ *#.*//')
+
+    echo "$FDISK_INSTR" | fdisk --wipe always $INSTALL_TGT > /dev/null
+
+    trap "echo 'install failed.' && unmount_image && exit 1" ERR
+
+    local LOOP=$(losetup -f)
+    losetup -P $LOOP $LFS_IMG
+
+    local LOOP_P1=${LOOP}p1
+    local LOOP_P2=${LOOP}p2
+    local INSTALL_P1="${INSTALL_TGT}${PART_PREFIX}1"
+    local INSTALL_P2="${INSTALL_TGT}${PART_PREFIX}2"
+
+    mkdir -p $LFS $INSTALL_MOUNT
+
+    if $UEFI
+    then
+        # setup root partition
+        mkfs -t $LFS_FS $INSTALL_P2 &> /dev/null
+        mkdir -p $INSTALL_MOUNT
+        mount -t $LFS_FS $INSTALL_P2 $INSTALL_MOUNT
+
+        # setup EFI partition
+        mkfs.vfat $INSTALL_P1 &> /dev/null
+        mkdir -p $INSTALL_MOUNT/boot/efi
+        mount -t vfat $INSTALL_P1 $INSTALL_MOUNT/boot/efi
+
+        # label the partitions
+        dosfslabel $INSTALL_P1 $LFSEFILABEL &> /dev/null
+        e2label $INSTALL_P2 $LFSROOTLABEL
+
+        # mount $LFS_IMG
+        mount $LOOP_P2 $LFS
+        mount -t vfat $INSTALL_P1 $LFS/boot/efi
+    else
+        # setup root partition
+        mkfs -t $LFS_FS $INSTALL_P1 &> /dev/null
+        mkdir -p $LFS
+        mount -t $LFS_FS $INSTALL_P1 $INSTALL_MOUNT
+
+        # add label
+        e2label $INSTALL_P1 $LFSROOTLABEL
+
+        # mount $LFS_IMG
+        mount -t $LFS_FS $LOOP_P1 $LFS
+    fi
+
+    cp -r $LFS/* $INSTALL_MOUNT/
+
+    mount --bind /dev $INSTALL_MOUNT/dev
+    mount --bind /dev/pts $INSTALL_MOUNT/dev/pts
+    mount -t sysfs sysfs $INSTALL_MOUNT/sys
+
+    local GRUB_CMD="grub-install $INSTALL_TGT --target i386-pc"
+    if $UEFI
+    then
+        GRUB_CMD="grub-install $INSTALL_TGT --bootloader-id=LFS --recheck"
+    fi
+    chroot $INSTALL_MOUNT /usr/bin/bash -c "$GRUB_CMD"
+
+    set +x
+
+    trap - ERR
+    unmount_image
+
+    echo "done."
+}
+
 function clean_image {
     if [ $UID -ne 0 ]
     then
@@ -659,11 +779,13 @@ while [ $# -gt 0 ]; do
       ;;
     -p|--start-phase)
       STARTPHASE="$2"
+      [ -z "$STARTPHASE" ] && echo "ERROR: $1 missing argument." && exit 1
       shift
       shift
       ;;
     -a|--start-package)
       STARTPKG="$2"
+      [ -z "$STARTPKG" ] && echo "ERROR: $1 missing argument." && exit 1
       shift
       shift
       ;;
@@ -673,6 +795,7 @@ while [ $# -gt 0 ]; do
       ;;
     -k|--kernel-config)
       KERNELCONFIG="$2"
+      [ -z "$KERNELCONFIG" ] && echo "ERROR: $1 missing argument." && exit 1
       shift
       shift
       ;;
@@ -682,6 +805,12 @@ while [ $# -gt 0 ]; do
       ;;
     -u|--umount)
       UNMOUNT=true
+      shift
+      ;;
+    -n|--install)
+      INSTALL_TGT="$2"
+      [ -z "$INSTALL_TGT" ] && echo "ERROR: $1 missing argument." && exit 1
+      shift
       shift
       ;;
     -c|--clean)
@@ -701,7 +830,7 @@ while [ $# -gt 0 ]; do
 done
 
 OPCOUNT=0
-for OP in BUILDALL CHECKDEPS DOWNLOAD INIT STARTPHASE MOUNT UNMOUNT CLEAN
+for OP in BUILDALL CHECKDEPS DOWNLOAD INIT STARTPHASE MOUNT UNMOUNT INSTALL_TGT CLEAN
 do
     OP="${!OP}"
     if [ -n "$OP" -a "$OP" != "false" ]
@@ -746,6 +875,12 @@ $INIT && init_image && exit
 $MOUNT && mount_image && exit
 $UNMOUNT && unmount_image && exit
 $CLEAN && clean_image && exit
+
+if [ -n "$INSTALL_TGT" ]
+then
+    install_image
+    exit
+fi
 
 if [ -n "$STARTPHASE" ]
 then
