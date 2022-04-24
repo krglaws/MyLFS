@@ -8,63 +8,66 @@ LFS_VERSION=11.1
 # ~~~~~~~~~
 
 function usage {
-    echo -e "Welcome to MyLFS.\n" \
-         "    If you would like to build Linux From Scratch from beginning to end, just\n" \
-         "specify --build-all on the commandline. Otherwise, you can build LFS one step\n" \
-         "at a time by using the various arguments outlined below. Before building anything\n" \
-         "however, you should be sure to run the script with '--check' to verify the\n" \
-         "dependencies on your system.\n" \
-         "\n" \
-         "WARNING: Most of the functionality in this script requires root privilages,\n" \
-         "and involves the partitioning, mounting and unmounting of device files. Use at\n" \
-         "your own risk.\n" \
-         "\n" \
-         "    options: \n" \
-         "        -v|--version        Print the LFS version this build is based on, then exit.\n" \
-         "\n" \
-         "        -V|--verbose        The script will output more information where applicable.\n" \
-         "\n" \
-         "        -f|--uefi           Build LFS with UEFI boot instead of the default BIOS boot.\n" \
-         "\n" \
-         "        -e|--check          Output LFS dependency version information, then exit.\n" \
-         "                            It is recommended that you run this before proceeding\n" \
-         "                            with the rest of the build.\n" \
-         "\n" \
-         "        -b|--build-all      Run the entire script from beginning to end.\n" \
-         "\n" \
-         "        -d|--download-pkgs  Download all packages into the 'pkgs' directory, then\n" \
-         "                            exit.\n" \
-         "\n" \
-         "        -i|--init           Create the .img file, partition it, setup basic directory\n" \
-         "                            structure, then exit.\n" \
-         "\n" \
-         "        -p|--start-phase\n" \
-         "        -a|--start-package  Select a phase and optionally a package\n" \
-         "                            within that phase to start building from.\n" \
-         "                            These options are only available if the preceeding\n" \
-         "                            phases have been completed. They should really only\n" \
-         "                            be used when something broke during a build, and you\n" \
-         "                            don't want to start from the beginning again.\n" \
-         "\n" \
-         "        -o|--one-off        Only build the specified phase/package.\n" \
-         "\n" \
-         "        -k|--kernel-config  Optional path to kernel config file to use during linux\n" \
-         "                            build.\n" \
-         "\n" \
-         "        -m|--mount\n" \
-         "        -u|--umount         These options will mount or unmount the disk image to the\n" \
-         "                            filesystem, and then exit the script immediately.\n" \
-         "                            You should be sure to unmount prior to running any part of\n" \
-         "                            the build, since the image will be automatically mounted\n" \
-         "                            and then unmounted at the end.\n" \
-         "\n" \
-         "        -n|--install        Specify the path to a block device on which to install the\n" \
-         "                            fully built img file.\n" \
-         "\n" \
-         "        -c|--clean          This will unmount and delete the image, and clear the\n" \
-         "                            logs.\n" \
-         "\n" \
-         "        -h|--help           Show this message."
+cat <<EOF
+Welcome to MyLFS.
+    If you would like to build Linux From Scratch from beginning to end, just
+specify --build-all on the commandline. Otherwise, you can build LFS one step
+at a time by using the various arguments outlined below. Before building anything
+however, you should be sure to run the script with '--check' to verify the
+dependencies on your system.
+
+WARNING: Most of the functionality in this script requires root privilages,
+and involves the partitioning, mounting and unmounting of device files. Use at
+your own risk.
+
+    options:
+        -v|--version        Print the LFS version this build is based on, then exit.
+
+        -V|--verbose        The script will output more information where applicable
+                            (careful what you wish for).
+
+        -f|--uefi           Build LFS with UEFI boot instead of the default BIOS boot.
+
+        -e|--check          Output LFS dependency version information, then exit.
+                            It is recommended that you run this before proceeding
+                            with the rest of the build.
+
+        -b|--build-all      Run the entire script from beginning to end.
+
+        -d|--download-pkgs  Download all packages into the 'pkgs' directory, then
+                            exit.
+
+        -i|--init           Create the .img file, partition it, setup basic directory
+                            structure, then exit.
+
+        -p|--start-phase
+        -a|--start-package  Select a phase and optionally a package
+                            within that phase to start building from.
+                            These options are only available if the preceeding
+                            phases have been completed. They should really only
+                            be used when something broke during a build, and you
+                            don't want to start from the beginning again.
+
+        -o|--one-off        Only build the specified phase/package.
+
+        -k|--kernel-config  Optional path to kernel config file to use during linux
+                            build.
+
+        -m|--mount
+        -u|--umount         These options will mount or unmount the disk image to the
+                            filesystem, and then exit the script immediately.
+                            You should be sure to unmount prior to running any part of
+                            the build, since the image will be automatically mounted
+                            and then unmounted at the end.
+
+        -n|--install        Specify the path to a block device on which to install the
+                            fully built img file.
+
+        -c|--clean          This will unmount and delete the image, and clear the
+                            logs.
+
+        -h|--help           Show this message."
+EOF
 }
 
 function check_dependency {
@@ -191,10 +194,7 @@ function init_image {
 
     trap "echo 'init failed.' && exit 1" ERR
 
-    if $VERBOSE
-    then
-        set -x
-    fi
+    $VERBOSE && set -x
 
     # create image file
     fallocate -l$LFS_IMG_SIZE $LFS_IMG
@@ -218,7 +218,7 @@ function init_image {
     # so ignore non-zero exit code, and manually re-read
     trap - ERR
     set +e
-    echo "$FDISK_INSTR" | fdisk --wipe always $LOOP &> /dev/null
+    echo "$FDISK_INSTR" | fdisk $LOOP &> /dev/null
     set -e
     trap "echo 'init failed.' && unmount_image && exit 1" ERR
 
@@ -308,7 +308,8 @@ function init_image {
         install_template ./templates/etc__fstab LFSROOTLABEL LFSEFILABEL LFSFSTYPE
     else
         install_template ./templates/etc__fstab LFSROOTLABEL LFSFSTYPE
-        sed -i "s/.*LFSEFILABEL.*//" $LFS/etc/fstab
+        sed -i "s/^.*LFSEFILABEL.*$//" $LFS/etc/fstab
+        sed -i "s/^.*efivars.*$//" $LFS/etc/fstab
     fi
 
     # make special device files
@@ -386,6 +387,8 @@ function mount_image {
         exit 1
     fi
 
+    $VERBOSE && set -x
+
     # make sure everything is unmounted first
     unmount_image
 
@@ -417,6 +420,8 @@ function mount_image {
     mount -t proc proc $LFS/proc
     mount -t sysfs sysfs $LFS/sys
     mount -t tmpfs tmpfs $LFS/run
+
+    set +x
 }
 
 function unmount_image {
@@ -425,6 +430,8 @@ function unmount_image {
         echo "ERROR: must be run as root."
         exit 1
     fi
+
+    $VERBOSE && set -x
 
     # unmount everything
     local GREP_FOR=$({ [ -n "$INSTALL_TGT" ] && echo "$LFS\|$INSTALL_MOUNT"; } || echo "$LFS")
@@ -440,13 +447,15 @@ function unmount_image {
     then
         losetup -d $(echo "$ATTACHED_LOOP" | cut -d" " -f1)
     fi
+
+    set +x
 }
 
 function build_package {
     local NAME=$1
     local NAME_OVERRIDE=$2
 
-    echo -n "Building $NAME phase $PHASE... "
+    { $VERBOSE && echo "Building $NAME phase $PHASE..."; } || echo -n "Building $NAME phase $PHASE... "
 
     local PKG_NAME=PKG_$([ -n "$NAME_OVERRIDE" ] && echo $NAME_OVERRIDE || echo $NAME | tr a-z A-Z)
     PKG_NAME=$(basename ${!PKG_NAME})
@@ -455,6 +464,7 @@ function build_package {
 
     local BUILD_INSTR="
         set -e
+        $VERBOSE && set -x
         pushd sources > /dev/null
         rm -rf $NAME
         mkdir $NAME
@@ -463,6 +473,7 @@ function build_package {
         $(cat ./phase${PHASE}/${NAME}.sh)
         popd
         rm -r sources/$NAME
+        set +x
     "
 
     pushd $LFS > /dev/null
@@ -472,14 +483,15 @@ function build_package {
                 HOME=/root \
                 TERM=$TERM \
                 PATH=/usr/bin:/usr/sbin \
-                /usr/bin/bash +h -c "$BUILD_INSTR" &> $LOG_FILE
+                /usr/bin/bash +h -c "$BUILD_INSTR" |& { $VERBOSE && tee $LOG_FILE || cat > $LOG_FILE; }
         then
             echo -e "\nERROR: $NAME Phase $PHASE failed:"
             tail $LOG_FILE
             return 1
         fi
-    elif ! (eval "$BUILD_INSTR") &> $LOG_FILE
+    elif ! (eval "$BUILD_INSTR") |& { $VERBOSE && tee $LOG_FILE || cat > $LOG_FILE; }
     then
+        set +x
         echo -e "\nERROR: $NAME phase $PHASE failed:"
         tail $LOG_FILE
         return 1
@@ -610,10 +622,7 @@ function install_image {
 
     echo -n "Installing LFS onto ${INSTALL_TGT}... "
 
-    if $VERBOSE
-    then
-        set -x
-    fi
+    $VERBOSE && set -x
 
     # partition the device
     if $UEFI
@@ -626,7 +635,16 @@ function install_image {
     # remove spaces and comments
     FDISK_INSTR=$(echo "$FDISK_INSTR" | sed 's/ *#.*//')
 
-    echo "$FDISK_INSTR" | fdisk --wipe always $INSTALL_TGT > /dev/null
+    if ! echo "$FDISK_INSTR" | fdisk $INSTALL_TGT |& { $VERBOSE && cat || cat > /dev/null; }
+    then
+        echo "ERROR: failed to format $INSTALL_TGT. Consider manually clearing $INSTALL_TGT's parition table."
+        exit
+    fi
+
+    # the kernel might need this.
+    sleep 1
+    partprobe $INSTALL_TGT
+    sleep 1
 
     trap "echo 'install failed.' && unmount_image && exit 1" ERR
 
@@ -648,7 +666,7 @@ function install_image {
         mount -t $LFS_FS $INSTALL_P2 $INSTALL_MOUNT
 
         # setup EFI partition
-        mkfs.vfat $INSTALL_P1 &> /dev/null
+        mkfs.vfat -F 32 $INSTALL_P1 &> /dev/null
         mkdir -p $INSTALL_MOUNT/boot/efi
         mount -t vfat $INSTALL_P1 $INSTALL_MOUNT/boot/efi
 
@@ -658,7 +676,7 @@ function install_image {
 
         # mount $LFS_IMG
         mount $LOOP_P2 $LFS
-        mount -t vfat $INSTALL_P1 $LFS/boot/efi
+        mount -t vfat $LOOP_P1 $LFS/boot/efi
     else
         # setup root partition
         mkfs -t $LFS_FS $INSTALL_P1 &> /dev/null
@@ -672,7 +690,13 @@ function install_image {
         mount -t $LFS_FS $LOOP_P1 $LFS
     fi
 
+    echo -n "Copying files... "
     cp -r $LFS/* $INSTALL_MOUNT/
+    echo "done."
+
+    # make sure grub.cfg is pointing at the right drive
+    local PARTUUID=$(lsblk -o PARTUUID $INSTALL_TGT | tail -1)
+    sed -Ei "s/root=PARTUUID=[0-9a-z-]+/root=PARTUUID=${PARTUUID}/" $INSTALL_MOUNT/boot/grub/grub.cfg
 
     mount --bind /dev $INSTALL_MOUNT/dev
     mount --bind /dev/pts $INSTALL_MOUNT/dev/pts
@@ -681,9 +705,13 @@ function install_image {
     local GRUB_CMD="grub-install $INSTALL_TGT --target i386-pc"
     if $UEFI
     then
+        mount -t efivarfs efivarfs $INSTALL_MOUNT/sys/firmware/efi/efivars
         GRUB_CMD="grub-install $INSTALL_TGT --bootloader-id=LFS --recheck"
     fi
+
+    echo -n "Installing GRUB. This may take a few minutes... "
     chroot $INSTALL_MOUNT /usr/bin/bash -c "$GRUB_CMD"
+    echo "done."
 
     set +x
 
@@ -754,10 +782,11 @@ while [ $# -gt 0 ]; do
       exit
       ;;
     -V|--verbose)
-      VERBOSE=true
+      export VERBOSE=true # exporting for chroot
       shift
       ;;
     -f|--uefi)
+      [ ! -d /sys/firmware/efi ] && echo "ERROR: The host system must be booted in UEFI mode in order to build LFS with UEFI support."
       UEFI=true
       shift
       ;;
@@ -865,9 +894,6 @@ fi
 # Start build
 # ~~~~~~~~~~~
 
-trap "echo 'build failed.' && cd $FULLPATH && unmount_image && exit 1" ERR
-trap "echo 'build cancelled.' && cd $FULLPATH && unmount_image && exit" SIGINT
-
 # Perform single operations
 $CHECKDEPS && check_dependencies && exit
 $DOWNLOAD && download_pkgs && exit
@@ -901,7 +927,11 @@ fi
 PATH=$LFS/tools/bin:$PATH
 CONFIG_SITE=$LFS/usr/share/config.site
 LC_ALL=POSIX
-export LC_ALL PATH CONFIG_SITE
+PARTUUID=$(lsblk -o PARTUUID $LOOP | tail -1) # needed for phase5/grub.sh
+export LC_ALL PATH CONFIG_SITE PARTUUID
+
+trap "echo 'build failed.' && cd $FULLPATH && unmount_image && exit 1" ERR
+trap "echo 'build cancelled.' && cd $FULLPATH && unmount_image && exit" SIGINT
 
 build_phase 1
 

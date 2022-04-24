@@ -20,6 +20,9 @@ make install
 
 mv /etc/bash_completion.d/grub /usr/share/bash-completion/completions
 
+# mount efivars
+mount -v -t efivarfs efivarfs /sys/firmware/efi/efivars
+
 GRUB_OUTPUT=$(grub-install $LOOP --bootloader-id=LFS --recheck)
 if [ -n "$(echo $GRUB_OUTPUT | grep "No error reported")" ]
 then
@@ -28,13 +31,15 @@ then
     exit -1
 fi
 
+# unmount efivars
+umount /sys/firmware/efi/efivars
+
 cat > /boot/grub/grub.cfg <<EOF
 set default=0
 set timeout=5
 
 insmod part_gpt
-insmod $LFS_FS
-set root=(hd0,2)
+insmod ext2
 
 if loadfont /boot/grub/fonts/unicode.pf2; then
   set gfxmode=auto
@@ -44,7 +49,7 @@ fi
 
 menuentry "GNU/Linux, Linux 5.16.9-lfs-11.1"  {
   search --no-floppy --label $LFSROOTLABEL --set=root
-  linux   /boot/vmlinuz-5.16.9-lfs-11.1 root=LABEL=$LFSROOTLABEL ro
+  linux   /boot/vmlinuz-5.16.9-lfs-11.1 rootwait root=PARTUUID=$PARTUUID ro
 }
 
 menuentry "Firmware Setup" {
