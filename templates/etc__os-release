@@ -1,0 +1,5 @@
+NAME="Linux From Scratch"
+VERSION=LFS_VERSION
+ID=lfs
+PRETTY_NAME="Linux From Scratch LFS_VERSION"
+VERSION_CODENAME=lfs

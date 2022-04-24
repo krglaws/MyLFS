@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -e
 
-LFS_VERSION=11.1
 
 # #########
 # Functions
@@ -303,11 +302,12 @@ function init_image {
 
     # install templates
     install_template ./templates/etc__hosts LFSHOSTNAME
-    if $UEFI
+    install_template ./templates/etc__lfs-release LFS_VERSION
+    install_template ./templates/etc__lsb-release LFS_VERSION
+    install_template ./templates/etc__os-release LFS_VERSION
+    install_template ./templates/etc__fstab LFSROOTLABEL LFSEFILABEL LFSFSTYPE
+    if ! $UEFI
     then
-        install_template ./templates/etc__fstab LFSROOTLABEL LFSEFILABEL LFSFSTYPE
-    else
-        install_template ./templates/etc__fstab LFSROOTLABEL LFSFSTYPE
         sed -i "s/^.*LFSEFILABEL.*$//" $LFS/etc/fstab
         sed -i "s/^.*efivars.*$//" $LFS/etc/fstab
     fi
