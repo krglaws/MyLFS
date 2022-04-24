@@ -31,6 +31,7 @@ n       # new partition
         # default partition number (1)
         # default partition start
         # default partition end (max)
+y       # confirm overwrite (noop if not prompted)
 w       # write to device and quit
 "
 
@@ -40,12 +41,14 @@ n       # new partition
         # default 1st partition
         # default start sector (2048)
 +512M   # 512 MiB
+y       # confirm overwrite (noop if not prompted)
 t       # modify parition type
-uefi    # EFI type
+1       # EFI type
 n       # new partition
         # default 2nd partition
         # default start sector
         # default end sector
+y       # confirm overwrite (noop if not prompted)
 w       # write to device and quit
 "
 
