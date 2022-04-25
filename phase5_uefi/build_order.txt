@@ -1,7 +1,0 @@
-# UEFI Boot Dependencies
-popt
-mandoc
-efivar
-efibootmgr
-grub
-

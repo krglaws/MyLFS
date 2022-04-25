@@ -25,8 +25,6 @@ your own risk.
         -V|--verbose        The script will output more information where applicable
                             (careful what you wish for).
 
-        -f|--uefi           Build LFS with UEFI boot instead of the default BIOS boot.
-
         -e|--check          Output LFS dependency version information, then exit.
                             It is recommended that you run this before proceeding
                             with the rest of the build.
@@ -202,15 +200,8 @@ function init_image {
     export LOOP=$(losetup -f) # export for grub.sh
     losetup $LOOP $LFS_IMG
 
-    # partition the device
-    if $UEFI
-    then
-        local FDISK_INSTR=$FDISK_INSTR_UEFI
-    else
-        local FDISK_INSTR=$FDISK_INSTR_BIOS
-    fi
-
-    # remove spaces and comments
+    # partition the device.
+    # remove spaces and comments from instructions
     FDISK_INSTR=$(echo "$FDISK_INSTR" | sed 's/ *#.*//')
 
     # fdisk fails to get kernel to re-read the partition table
@@ -226,34 +217,15 @@ function init_image {
     sleep 1 # give the kernel a sec
     losetup -P $LOOP $LFS_IMG
 
-    if $UEFI
-    then
-        local LOOP_P1=${LOOP}p1
-        local LOOP_P2=${LOOP}p2
+    local LOOP_P1=${LOOP}p1
 
-        # setup root partition
-        mkfs -t $LFS_FS $LOOP_P2 &> /dev/null
-        mkdir -p $LFS
-        mount -t $LFS_FS $LOOP_P2 $LFS
+    # setup root partition
+    mkfs -t $LFS_FS $LOOP_P1 &> /dev/null
+    mkdir -p $LFS
+    mount -t $LFS_FS $LOOP_P1 $LFS
 
-        # setup EFI partition
-        mkfs.vfat $LOOP_P1 &> /dev/null
-        mkdir -p $LFS/boot/efi
-        mount -t vfat $LOOP_P1 $LFS/boot/efi
+    e2label $LOOP_P1 $LFSROOTLABEL
 
-        # label the partitions
-        dosfslabel $LOOP_P1 $LFSEFILABEL &> /dev/null
-        e2label $LOOP_P2 $LFSROOTLABEL
-    else
-        local LOOP_P1=${LOOP}p1
-
-        # setup root partition
-        mkfs -t $LFS_FS $LOOP_P1 &> /dev/null
-        mkdir -p $LFS
-        mount -t $LFS_FS $LOOP_P1 $LFS
-
-        e2label $LOOP_P1 $LFSROOTLABEL
-    fi
     rm -rf $LFS/lost+found
 
     echo "done."
@@ -305,12 +277,7 @@ function init_image {
     install_template ./templates/etc__lfs-release LFS_VERSION
     install_template ./templates/etc__lsb-release LFS_VERSION
     install_template ./templates/etc__os-release LFS_VERSION
-    install_template ./templates/etc__fstab LFSROOTLABEL LFSEFILABEL LFSFSTYPE
-    if ! $UEFI
-    then
-        sed -i "s/^.*LFSEFILABEL.*$//" $LFS/etc/fstab
-        sed -i "s/^.*efivars.*$//" $LFS/etc/fstab
-    fi
+    install_template ./templates/etc__fstab LFSROOTLABEL LFSFSTYPE
 
     # make special device files
     mknod -m 600 $LFS/dev/console c 5 1
@@ -395,24 +362,11 @@ function mount_image {
     # attach loop device
     export LOOP=$(losetup -f) # export for grub.sh
     local LOOP_P1=${LOOP}p1
-    local LOOP_P2=${LOOP}p2
 
-    if $UEFI
-    then
-        losetup -P $LOOP $LFS_IMG
-        sleep 1 # give the kernel a sec
+    losetup -P $LOOP $LFS_IMG
 
-        # mount root fs
-        mount $LOOP_P2 $LFS
-
-        # mount boot partition
-        mount -t vfat $LOOP_P1 $LFS/boot/efi
-    else
-        losetup -P $LOOP $LFS_IMG
-        sleep 1
-
-        mount $LOOP_P1 $LFS
-    fi
+    sleep 1
+    mount $LOOP_P1 $LFS
 
     # mount stuff from the host onto the target disk
     mount --bind /dev $LFS/dev
@@ -544,11 +498,6 @@ function build_phase {
         CHROOT=true
     fi
 
-    if [ $PHASE -eq 5 ]
-    then
-        PHASE=5_$({ $UEFI && echo "uefi"; } || echo "bios")
-    fi
-
     while read pkg
     do
         if $FOUNDSTARTPKG && $ONEOFF
@@ -624,14 +573,7 @@ function install_image {
 
     $VERBOSE && set -x
 
-    # partition the device
-    if $UEFI
-    then
-        local FDISK_INSTR=$FDISK_INSTR_UEFI
-    else
-        local FDISK_INSTR=$FDISK_INSTR_BIOS
-    fi
-
+    # partition the device.
     # remove spaces and comments
     FDISK_INSTR=$(echo "$FDISK_INSTR" | sed 's/ *#.*//')
 
@@ -640,55 +582,25 @@ function install_image {
         echo "ERROR: failed to format $INSTALL_TGT. Consider manually clearing $INSTALL_TGT's parition table."
         exit
     fi
-
-    # the kernel might need this.
-    sleep 1
     partprobe $INSTALL_TGT
-    sleep 1
 
     trap "echo 'install failed.' && unmount_image && exit 1" ERR
 
-    local LOOP=$(losetup -f)
-    losetup -P $LOOP $LFS_IMG
-
-    local LOOP_P1=${LOOP}p1
-    local LOOP_P2=${LOOP}p2
-    local INSTALL_P1="${INSTALL_TGT}${PART_PREFIX}1"
-    local INSTALL_P2="${INSTALL_TGT}${PART_PREFIX}2"
-
     mkdir -p $LFS $INSTALL_MOUNT
 
-    if $UEFI
-    then
-        # setup root partition
-        mkfs -t $LFS_FS $INSTALL_P2 &> /dev/null
-        mkdir -p $INSTALL_MOUNT
-        mount -t $LFS_FS $INSTALL_P2 $INSTALL_MOUNT
+    # mount IMG file
+    local LOOP=$(losetup -f)
+    local LOOP_P1=${LOOP}p1
+    losetup -P $LOOP $LFS_IMG
 
-        # setup EFI partition
-        mkfs.vfat -F 32 $INSTALL_P1 &> /dev/null
-        mkdir -p $INSTALL_MOUNT/boot/efi
-        mount -t vfat $INSTALL_P1 $INSTALL_MOUNT/boot/efi
+    # setup install partition
+    local INSTALL_P1="${INSTALL_TGT}${PART_PREFIX}1"
+    mkfs -t $LFS_FS $INSTALL_P1 &> /dev/null
+    e2label $INSTALL_P1 $LFSROOTLABEL
 
-        # label the partitions
-        dosfslabel $INSTALL_P1 $LFSEFILABEL &> /dev/null
-        e2label $INSTALL_P2 $LFSROOTLABEL
-
-        # mount $LFS_IMG
-        mount $LOOP_P2 $LFS
-        mount -t vfat $LOOP_P1 $LFS/boot/efi
-    else
-        # setup root partition
-        mkfs -t $LFS_FS $INSTALL_P1 &> /dev/null
-        mkdir -p $LFS
-        mount -t $LFS_FS $INSTALL_P1 $INSTALL_MOUNT
-
-        # add label
-        e2label $INSTALL_P1 $LFSROOTLABEL
-
-        # mount $LFS_IMG
-        mount -t $LFS_FS $LOOP_P1 $LFS
-    fi
+    # mount install partition
+    mount $INSTALL_P1 $INSTALL_MOUNT
+    mount $LOOP_P1 $LFS
 
     echo -n "Copying files... "
     cp -r $LFS/* $INSTALL_MOUNT/
@@ -703,11 +615,6 @@ function install_image {
     mount -t sysfs sysfs $INSTALL_MOUNT/sys
 
     local GRUB_CMD="grub-install $INSTALL_TGT --target i386-pc"
-    if $UEFI
-    then
-        mount -t efivarfs efivarfs $INSTALL_MOUNT/sys/firmware/efi/efivars
-        GRUB_CMD="grub-install $INSTALL_TGT --bootloader-id=LFS --recheck"
-    fi
 
     echo -n "Installing GRUB. This may take a few minutes... "
     chroot $INSTALL_MOUNT /usr/bin/bash -c "$GRUB_CMD"
@@ -773,7 +680,6 @@ FOUNDSTARTPHASE=false
 MOUNT=false
 UNMOUNT=false
 CLEAN=false
-export UEFI=false # exported for linux.sh
 
 while [ $# -gt 0 ]; do
   case $1 in
@@ -783,11 +689,6 @@ while [ $# -gt 0 ]; do
       ;;
     -V|--verbose)
       export VERBOSE=true # exporting for chroot
-      shift
-      ;;
-    -f|--uefi)
-      [ ! -d /sys/firmware/efi ] && echo "ERROR: The host system must be booted in UEFI mode in order to build LFS with UEFI support."
-      UEFI=true
       shift
       ;;
     -e|--check)
@@ -875,7 +776,7 @@ do
 done
 
 if [ -n "$STARTPHASE" ] &&
-[ "$STARTPHASE" != 1 -a "$STARTPHASE" != 2 -a "$STARTPHASE" != 3 -a "$STARTPHASE" != 4 -a "$STARTPHASE" != 5 ]
+[ "$STARTPHASE" != 1 -a "$STARTPHASE" != 2 -a "$STARTPHASE" != 3 -a "$STARTPHASE" != 4 ]
 then
     echo "ERROR: phase '$STARTPHASE' does not exist"
     exit 1
@@ -951,10 +852,6 @@ rm -rf $LFS/tools
 $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
 
 build_phase 4
-
-$ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
-
-build_phase 5
 
 # final cleanup
 rm -rf $LFS/tmp/*

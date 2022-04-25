@@ -30,20 +30,6 @@ else
     config_off CONFIG_UEVENT_HELPER
     config_on  CONFIG_DEVTMPFS
     config_on  CONFIG_MODULES
-
-    if $UEFI
-    then
-        config_on CONFIG_EFI
-        config_on CONFIG_EFI_STUB
-        config_off CONFIG_EFI_VARS
-        config_on CONFIG_EFI_RUNTIME_MAP
-        config_on CONFIG_PARTITION_ADVANCED
-        config_on CONFIG_EFI_PARTITION
-        config_on CONFIG_FB
-        config_on CONFIG_FB_EFI
-        config_on CONFIG_FRAMEBUFFER_CONSOLE
-        config_on CONFIG_EFIVAR_FS
-    fi
 fi
 
 make

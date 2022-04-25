@@ -54,6 +54,7 @@ diffutils
 gawk
 findutils
 groff
+grub
 gzip
 iproute2
 kbd
