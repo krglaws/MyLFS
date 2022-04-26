@@ -840,8 +840,9 @@ CONFIG_SITE=$LFS/usr/share/config.site
 LC_ALL=POSIX
 export LC_ALL PATH CONFIG_SITE
 
-trap "echo 'build failed.' && cd $FULLPATH && unmount_image && exit 1" ERR
+trap "echo 'build successful.' && exit" EXIT
 trap "echo 'build cancelled.' && cd $FULLPATH && unmount_image && exit" SIGINT
+trap "echo 'build failed.' && cd $FULLPATH && unmount_image && exit 1" ERR
 
 build_phase 1
 
