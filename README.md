@@ -8,9 +8,11 @@ Basically, just run `sudo ./build.sh` and then stare at your terminal for severa
 $ sudo ./build.sh --help
 
 Welcome to MyLFS.
+
     WARNING: Most of the functionality in this script requires root privilages,
 and involves the partitioning, mounting and unmounting of device files. Use at
 your own risk.
+
     If you would like to build Linux From Scratch from beginning to end, just
 run the script with the '--build-all' command. Otherwise, you can build LFS one step
 at a time by using the various commands outlined below. Before building anything
@@ -19,6 +21,7 @@ dependencies on your system. If you want to install the IMG file that this
 script produces onto a storage device, you can specify '--install /dev/<devname>'
 on the commandline. Be careful with that last one - it WILL destroy all partitions
 on the device you specify.
+
     options:
         -v|--version        Print the LFS version this build is based on, then exit.
         -V|--verbose        The script will output more information where applicable
