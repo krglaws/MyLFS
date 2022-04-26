@@ -6,19 +6,6 @@
 make
 
 make install
-mv -v /etc/bash_completion.d/grub /usr/share/bash-completion/completions
+mv /etc/bash_completion.d/grub /usr/share/bash-completion/completions
 
 grub-install $LOOP --target i386-pc
-
-cat > /boot/grub/grub.cfg <<EOF
-set default=0
-set timeout=5
-
-insmod ext2
-
-menuentry "GNU/Linux, Linux 5.16.9-lfs-11.1" {
-  search --no-floppy --label $LFSROOTLABEL --set=root
-  linux   /boot/vmlinuz-5.16.9-lfs-11.1 rootwait root=PARTUUID=$PARTUUID ro
-}
-EOF
-

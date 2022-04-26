@@ -198,6 +198,7 @@ function init_image {
 
     # attach loop device
     export LOOP=$(losetup -f) # export for grub.sh
+    local LOOP_P1=${LOOP}p1
     losetup $LOOP $LFS_IMG
 
     # partition the device.
@@ -217,7 +218,7 @@ function init_image {
     sleep 1 # give the kernel a sec
     losetup -P $LOOP $LFS_IMG
 
-    local LOOP_P1=${LOOP}p1
+    PARTUUID=$(lsblk -o PARTUUID $LOOP | tail -1) # needed for grub.cfg
 
     # setup root partition
     mkfs -t $LFS_FS $LOOP_P1 &> /dev/null
@@ -278,6 +279,7 @@ function init_image {
     install_template ./templates/etc__lsb-release LFS_VERSION
     install_template ./templates/etc__os-release LFS_VERSION
     install_template ./templates/etc__fstab LFSROOTLABEL LFSFSTYPE
+    install_template ./templates/boot__grub__grub.cfg LFSROOTLABEL PARTUUID
 
     # make special device files
     mknod -m 600 $LFS/dev/console c 5 1
@@ -454,7 +456,7 @@ function build_package {
 
     if $KEEP_LOGS
     then
-        (cd $LOG_DIR && gzip $LOG_FILE)
+        (cd $LOG_DIR && gzip -f $LOG_FILE)
     else
         rm $LOG_FILE
     fi
@@ -569,9 +571,13 @@ function install_image {
         exit
     fi
 
-    echo -n "Installing LFS onto ${INSTALL_TGT}... "
-
-    $VERBOSE && set -x
+    if $VERBOSE
+    then
+        echo "Installing LFS onto ${INSTALL_TGT}... "
+        set -x
+    else
+        echo -n "Installing LFS onto ${INSTALL_TGT}... "
+    fi
 
     # partition the device.
     # remove spaces and comments
@@ -602,7 +608,7 @@ function install_image {
     mount $INSTALL_P1 $INSTALL_MOUNT
     mount $LOOP_P1 $LFS
 
-    echo -n "Copying files... "
+    $VERBOSE && echo "Copying files... " || echo -n "Copying files... "
     cp -r $LFS/* $INSTALL_MOUNT/
     echo "done."
 
@@ -616,8 +622,8 @@ function install_image {
 
     local GRUB_CMD="grub-install $INSTALL_TGT --target i386-pc"
 
-    echo -n "Installing GRUB. This may take a few minutes... "
-    chroot $INSTALL_MOUNT /usr/bin/bash -c "$GRUB_CMD"
+    $VERBOSE && echo "Installing GRUB. This may take a few minutes... " || echo -n "Installing GRUB. This may take a few minutes... "
+    chroot $INSTALL_MOUNT /usr/bin/bash -c "$GRUB_CMD" |& { $VERBOSE && cat || cat > /dev/null; }
     echo "done."
 
     set +x
@@ -778,11 +784,11 @@ done
 if [ -n "$STARTPHASE" ] &&
 [ "$STARTPHASE" != 1 -a "$STARTPHASE" != 2 -a "$STARTPHASE" != 3 -a "$STARTPHASE" != 4 ]
 then
-    echo "ERROR: phase '$STARTPHASE' does not exist"
+    echo "ERROR: phase '$STARTPHASE' does not exist."
     exit 1
 elif [ -n "$STARTPKG" -a -z "$STARTPHASE" ]
 then
-    echo "ERROR: -p|--start-phase must be defined if -a|--start-package is defined"
+    echo "ERROR: -p|--start-phase must be defined if -a|--start-package is defined."
     exit 1
 elif $ONEOFF && [ -z "$STARTPHASE" -a -z "$STARTPKG" ]
 then
@@ -828,8 +834,7 @@ fi
 PATH=$LFS/tools/bin:$PATH
 CONFIG_SITE=$LFS/usr/share/config.site
 LC_ALL=POSIX
-PARTUUID=$(lsblk -o PARTUUID $LOOP | tail -1) # needed for phase5/grub.sh
-export LC_ALL PATH CONFIG_SITE PARTUUID
+export LC_ALL PATH CONFIG_SITE
 
 trap "echo 'build failed.' && cd $FULLPATH && unmount_image && exit 1" ERR
 trap "echo 'build cancelled.' && cd $FULLPATH && unmount_image && exit" SIGINT
