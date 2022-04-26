@@ -3,6 +3,8 @@ It's a giant bash script that builds Linux From Scratch.
 
 Pronounce it in whatever way seems best to you.
 
+If you don't know what this is, or haven't built Linux From Scratch on your own before, you should go through the [LFS book](https://linuxfromscratch.org) before using this script.
+
 ## How To Use
 Basically, just run `sudo ./build.sh` and then stare at your terminal for several hours. Maybe meditate on life or something while you wait. Or maybe clean your room or do your dishes finally. I don't know. Do whatever you want. Maybe by the end of the script, you'll realize why you love linux so much: you love it because it is *hard*. Just like going to the moon, god dammit.
 
@@ -70,13 +72,8 @@ on the device you specify.
                             
         -h|--help           Show this message.
 ```
-And that's all the help you're getting.
 
-...
-
-## Okay, fine
-
-Here's a little more info.
+## How It Works
 
 The script builds LFS by completing the following steps:
 
