@@ -3,10 +3,10 @@ It's a giant bash script that builds Linux From Scratch.
 
 Pronounce it in whatever way seems best to you.
 
-If you don't know what this is, or haven't built Linux From Scratch on your own before, you should go through the [LFS book](https://linuxfromscratch.org) before using this script.
+If you don't know what this is, or haven't built Linux From Scratch on your own before, you should go through the LFS [book](https://linuxfromscratch.org) before using this script.
 
 ## How To Use
-Basically, just run `sudo ./build.sh` and then stare at your terminal for several hours. Maybe meditate on life or something while you wait. Or maybe clean your room or do your dishes finally. I don't know. Do whatever you want. Maybe by the end of the script, you'll realize why you love linux so much: you love it because it is *hard*. Just like going to the moon, god dammit.
+Basically, just run `sudo ./mylfs.sh --build-all` and then stare at your terminal for several hours. Maybe meditate on life or something while you wait. Or maybe clean your room or do your dishes finally. I don't know. Do whatever you want. Maybe by the end of the script, you'll realize why you love linux so much: you love it because it is *hard*. Just like going to the moon, god dammit.
 
 ```
 $ sudo ./build.sh --help
@@ -77,26 +77,73 @@ on the device you specify.
 
 The script builds LFS by completing the following steps:
 
-### Step 1.
-Create a 10 gigabyte IMG file called `lfs.img`. This will serve as a virtual hard drive on which to build LFS.
 
-### Step 2.
-"Attach" the IMG file as a loop device using `losetup`. This way, the host machine can operate on the IMG file as if it were a physical storage device.
+1. Download package source code and save to the `./pkgs/` directory.
 
-### Step 3.
-Partition the IMG file via the loop device we've created, put an ext4 filesystem on it, then add a basic directory structure and some config files (such as /boot/grub/grub.cfg etc).
 
-### Step 4.
-Build initial cross compilation tools. This corresponds to chapter 5 in the LFS book.
+2. Create a 10 gigabyte IMG file called `lfs.img`. This will serve as a virtual hard drive on which to build LFS.
 
-### Step 5.
-Begin to build tools required for minimal chroot environment. (chapter 6)
 
-### Step 6.
-Enter chroot environment, and build remaing tools needed to build the entire LFS system. (chapter 7)
+3. "Attach" the IMG file as a loop device using `losetup`. This way, the host machine can operate on the IMG file as if it were a physical storage device.
 
-### Step 7.
-Build the entire LFS system from within chroot envirnment, including the kernel, GRUB, and others.
 
-### That's all.
-If at any point over the course of the build something breaks, you can examine the build logs in the aptly named `logs` directory. If you discover the source of the breakage and manage to fix it, you can start the script up again from where you left off using the `--start-phase <phase-number>` and `--start-package <package-name>` commands. You *might* be able to boot up the IMG file in a virtual machine, but I have just been using a flash drive and my laptop. If you want to install the finished product onto a storage device (such as a flash drive as I have been doing), checkout the `--install` command.
+4. Partition the IMG file via the loop device we've created, put an ext4 filesystem on it, then add a basic directory structure and some config files (such as /boot/grub/grub.cfg etc).
+
+
+5. Build initial cross compilation tools. This corresponds to chapter 5 in the LFS book.
+
+
+6. Begin to build tools required for minimal chroot environment. (chapter 6)
+
+
+7. Enter chroot environment, and build remaing tools needed to build the entire LFS system. (chapter 7)
+
+
+8. Build the entire LFS system from within chroot envirnment, including the kernel, GRUB, and others.
+
+
+That's it.
+
+
+## Examples
+If something breaks over the course of the build, you can examine the build logs in the aptly named `logs` directory. If you discover the source of the breakage and manage to fix it, you can start the script up again from where you left off using the `--start-phase <phase-number>` and `--start-package <package-name>` commands.
+
+
+For example, say the GRUB build in phase 4 broke:
+```sh
+sudo ./mylfs.sh --start-phase 4 --start-package grub
+```
+This will start the script up again at the phase 4 GRUB build, and continue on to the remaining packages.
+
+
+Another example. Say you just changed your kernel config file a bit and need to recompile:
+```sh
+sudo ./mylfs.sh --start-phase 4 --start-package linux --one-off
+```
+The `--one-off` flag tells the script to exit once the starting package has been completed.  
+
+
+If you want to poke around inside the image file without booting into it, you can simple use the `--mount` command like so:
+```sh
+sudo ./mylfs.sh --mount
+```
+This will mount the root partition of the IMG file under `./mnt/lfs` (i.e. not `/mnt` under the root directory). When you're done, you can unmount with the following:
+```sh
+sudo ./mylfs.sh --umount
+```  
+
+If you want to install the LFS IMG file onto a drive a some kind, use:
+```sh
+sudo ./mylfs.sh --install /dev/<devname>
+```  
+
+
+Finally, to clean your workspace:
+```sh
+sudo ./mylfs.sh --clean
+```
+This will unmount the IMG file (if it is mounted), delete it, and delete the logs under `./logs`. It will not delete the cached package archives under `./pkgs`, but if you really want to do that you can easily `rm -f ./pkgs/*`.  
+
+
+## Booting
+So far, I have only managed to boot the IMG file from a flash drive on bare metal. It would be cool to be able to just boot it up with a VM, but I have yet to figure out how to get that to work. Suggestions are welcome.
