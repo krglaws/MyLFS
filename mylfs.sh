@@ -575,14 +575,10 @@ function install_image {
         exit
     fi
 
-    if $VERBOSE
-    then
-        echo "Installing LFS onto ${INSTALL_TGT}... "
-        set -x
-    else
-        echo -n "Installing LFS onto ${INSTALL_TGT}... "
-    fi
+    echo "Installing LFS onto ${INSTALL_TGT}... "
 
+    $VERBOSE && set -x
+ 
     # partition the device.
     # remove spaces and comments
     FDISK_INSTR=$(echo "$FDISK_INSTR" | sed 's/ *#.*//')
@@ -635,7 +631,7 @@ function install_image {
     trap - ERR
     unmount_image
 
-    echo "done."
+    echo "Installed successfully."
 }
 
 function clean_image {
