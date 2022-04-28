@@ -326,12 +326,12 @@ function download_pkgs {
 
     for url in $PACKAGE_URLS
     do
-        trap "{ cleanup_cancelled_download $url; exit }" ERR SIGINT
+        trap "cleanup_cancelled_download $url && exit" ERR SIGINT
 
         $VERBOSE && echo -n "Downloading '$url'... "
         if ! echo $ALREADY_DOWNLOADED | grep $(basename $url) > /dev/null
         then
-            if ! wget --quiet --directory-prefix $PACKAGE_DIR $url
+            if ! curl --location --silent --output $PACKAGE_DIR/$(basename $url) $url
             then
                 echo -e "\nERROR: Failed to download URL '$url'"
                 exit 1
