@@ -123,7 +123,7 @@ sudo ./mylfs.sh --start-phase 4 --start-package linux --one-off
 The `--one-off` flag tells the script to exit once the starting package has been completed.  
 
 
-If you want to poke around inside the image file without booting into it, you can simple use the `--mount` command like so:
+If you want to poke around inside the image file without booting into it, you can simply use the `--mount` command like so:
 ```sh
 sudo ./mylfs.sh --mount
 ```
@@ -132,10 +132,10 @@ This will mount the root partition of the IMG file under `./mnt/lfs` (i.e. not `
 sudo ./mylfs.sh --umount
 ```  
 
-If you want to install the LFS IMG file onto a drive a some kind, use:
+If you want to install the LFS IMG file onto a drive of some kind, use:
 ```sh
 sudo ./mylfs.sh --install /dev/<devname>
-```  
+```
 
 
 Finally, to clean your workspace:
