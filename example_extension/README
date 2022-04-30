@@ -1,0 +1,117 @@
+This directory contains an example MyLFS extension.
+
+What is a MyLFS extension?
+    MyLFS by itself builds the Linux From Scratch System V Init version
+almost exactly according to the book. The end result is of course very
+minimal, and that's where Beyond Linux From Scratch comes in. You can use
+the instructions in that book to add packages and expand on the system that
+you have built. MyLFS extensions are modules that contain the information
+needed to automatically build BLFS packages, on top of the LFS system that
+MyLFS builds.
+
+How to create an extension:
+
+- Ideally create a git repository that you use to maintain your extension.
+  All you really need is a directory that can be named anything.
+
+  For example:
+    my_extension/
+
+
+- Inside of your repository, add a file called pkgs.sh. This will contain
+  a listing of the URLs of all of the packages your extension will be
+  building. The format should look like this:
+
+    ```
+    # Comments and empty lines are allowed.
+    # Each line should start with "export".
+    # Each variable name should have either
+    # a "PKG_" or a "PATCH_" prefix.
+
+    export PKG_LYNX=<lynx tarball download>
+    export PATCH_LYNX=<lynx patch download>
+
+    # don't add any other code, since this
+    # file is both 'sourced' and parsed by
+    # mylfs.sh.
+    ```
+
+
+- Once you have established the list of package URLs inside of pkgs.sh,
+  you can add the build scripts for each respective package. 
+
+    For example:
+      my_extension/lynx.sh     -> builds PKG_LYNX
+      my_extension/makeca.sh   -> builds PKG_MAKECA
+
+    The script names should be the same as the package names, but lower
+    case and without the "PKG_" prefix, e.g. "lynx.sh" and "PKG_LYNX".
+
+    The contents of these scripts should contain the build instructions
+    defined in BLFS for that particular package. they will be executed
+    from within the unzipped package directories, just as the instructions
+    from BLFS are, so they can be left unchanged.
+
+    If a package you are building needs to be patched prior to the build,
+    be sure to apply the patch yourself at the top of your script. All patches
+    and tarballs will be accessible from "above" the directory where the
+    script is executing.
+
+    For example:
+    ```
+    # lynx.sh
+    # this is running inside of the extracted
+    # package tarball associated with this script.
+
+    # patch applied here
+    patch -Np1 -i ../$(basename $PATCH_LYNX)
+
+    ./configure --prefix=/usr          \
+                --sysconfdir=/etc/lynx \
+                --datadir=/usr/share/doc/lynx-2.8.9rel.1 \
+                --with-zlib            \
+                --with-bzlib           \
+                --with-ssl             \
+                --with-screen=ncursesw \
+                --enable-locale-charset
+    make
+
+    make install-full
+    chgrp -v -R root /usr/share/doc/lynx-2.8.9rel.1/lynx_doc
+    ```
+
+
+- Finally, create a file called "build_order.txt" in your extension directory.
+  This file should contain the list of packages to build. mylfs.sh will
+  build each one in the order that they occur in this file.
+
+    For example:
+      my_extension/build_order.txt
+
+    ```
+    # Comments and empty lines are allowed.
+    # The name of each item in the list should
+    # be the same as the script name, but without
+    # the ".sh" suffix.
+
+    lynx
+    makeca
+
+    # if the name of a script, does not match the
+    # name of the package it is building, you can
+    # specify the package name in all caps like so:
+    my_script  PACKAGENAME
+
+    # this is useful if you want to build something twice
+    # to get around some circular dependency.
+    ```
+
+
+- More Notes:
+
+    The logs of the build outputs for each of the packages in the extension
+    will be saved to the "MyLFS/logs/" directory, alongside the LFS logs.
+
+    The package tarballs for extensions will be saved to "<extension-dir>/pkgs/",
+    separate from the LFS packages that are kept in "MyLFS/pkgs/".
+

@@ -35,6 +35,9 @@ on the device you specify.
 
         -b|--build-all      Run the entire script from beginning to end.
 
+        -x|--extend         Pass in the path to a custom build extension. See the
+                            'example_extension' directory for reference.
+
         -d|--download-pkgs  Download all packages into the 'pkgs' directory, then
                             exit.
 
@@ -319,10 +322,21 @@ function cleanup_cancelled_download {
 }
 
 function download_pkgs {
-    { $VERBOSE && echo "Downloading packages... "; } || echo -n "Downloading packages... "
+    if [ -n "$1" ]
+    then
+        # if an extension is being built, it will
+        # override the pkgs and pkgs.sh paths
+        local PACKAGE_DIR=$1/pkgs
+        local PACKAGE_LIST=$1/pkgs.sh
+    fi
 
-    local PACKAGE_URLS=$(cat $PACKAGE_LIST | cut -d"=" -f2)
+    [ -d "$PACKAGE_DIR" ] || mkdir "$PACKAGE_DIR"
+    [ -f "$PACKAGE_LIST" ] || { echo "ERROR: $PACKAGE_LIST is missing." && exit 1; }
+
+    local PACKAGE_URLS=$(cat $PACKAGE_LIST | grep "^[^#]" | cut -d"=" -f2)
     local ALREADY_DOWNLOADED=$(ls $PACKAGE_DIR)
+
+    { $VERBOSE && echo "Downloading packages... "; } || echo -n "Downloading packages... "
 
     for url in $PACKAGE_URLS
     do
@@ -421,6 +435,7 @@ function build_package {
     PKG_NAME=$(basename ${!PKG_NAME})
 
     local LOG_FILE=$LOG_DIR/${NAME}_phase${PHASE}.log
+    local SCRIPT_PATH=$([ $PHASE -eq 5 ] && echo $EXTENSION/${NAME}.sh || echo ./phase${PHASE}/${NAME}.sh)
 
     local BUILD_INSTR="
         set -e
@@ -430,7 +445,7 @@ function build_package {
         mkdir $NAME
         tar -xf $PKG_NAME -C $NAME --strip-components=1
         cd $NAME
-        $(cat ./phase${PHASE}/${NAME}.sh)
+        $(cat $SCRIPT_PATH)
         popd
         rm -r sources/$NAME
         set +x
@@ -439,22 +454,26 @@ function build_package {
     pushd $LFS > /dev/null
     if $CHROOT
     then
-        if ! chroot "$LFS" /usr/bin/env \
-                HOME=/root \
-                TERM=$TERM \
-                PATH=/usr/bin:/usr/sbin \
-                /usr/bin/bash +h -c "$BUILD_INSTR" |& { $VERBOSE && tee $LOG_FILE || cat > $LOG_FILE; }
+        chroot "$LFS" /usr/bin/env \
+                        HOME=/root \
+                        TERM=$TERM \
+                        PATH=/usr/bin:/usr/sbin \
+                        /usr/bin/bash +h -c "$BUILD_INSTR" |& { $VERBOSE && tee $LOG_FILE || cat > $LOG_FILE; }
+        if [ ${PIPESTATUS[0]} -ne 0 ]
         then
             echo -e "\nERROR: $NAME Phase $PHASE failed:"
             tail $LOG_FILE
             return 1
         fi
-    elif ! (eval "$BUILD_INSTR") |& { $VERBOSE && tee $LOG_FILE || cat > $LOG_FILE; }
-    then
-        set +x
-        echo -e "\nERROR: $NAME phase $PHASE failed:"
-        tail $LOG_FILE
-        return 1
+    else
+        (eval "$BUILD_INSTR") |& { $VERBOSE && tee $LOG_FILE || cat > $LOG_FILE; }
+        if [ ${PIPESTATUS[0]} -ne 0 ]
+        then
+            set +x
+            echo -e "\nERROR: $NAME phase $PHASE failed:"
+            tail $LOG_FILE
+            return 1
+        fi
     fi
     popd > /dev/null
 
@@ -504,6 +523,11 @@ function build_phase {
         CHROOT=true
     fi
 
+    local PHASE_DIR=./phase$PHASE 
+
+    # Phase 5 == a build extension
+    [ $PHASE -eq 5 ] && PHASE_DIR=$EXTENSION
+
     while read pkg
     do
         if $FOUNDSTARTPKG && $ONEOFF
@@ -520,7 +544,7 @@ function build_phase {
             if [ "$STARTPKG" == "$(echo $pkg | cut -d" " -f1)" ]
             then
                 FOUNDSTARTPKG=true
-                build_package $pkg
+                ! build_package $pkg && return 1
             else
                 continue
             fi
@@ -528,7 +552,7 @@ function build_phase {
             build_package $pkg
         fi
 
-    done < ./phase$PHASE/build_order.txt
+    done < $PHASE_DIR/build_order.txt
 
     if [ -n "$STARTPKG" -a "$STARTPHASE" == "$PHASE" -a ! $FOUNDSTARTPKG ]
     then
@@ -667,12 +691,12 @@ function clean_image {
 # ~~~~~~~~~~~~~~~
 
 cd $(dirname $0)
+
+# import config vars
 source ./config.sh
-while read pkg;
-do
-    eval $pkg
-    export $(echo $pkg | cut -d"=" -f1)
-done < $PACKAGE_LIST
+
+# import package list
+source ./pkgs.sh
 
 
 VERBOSE=false
@@ -703,6 +727,11 @@ while [ $# -gt 0 ]; do
       ;;
     -b|--build-all)
       BUILDALL=true
+      shift
+      ;;
+    -x|--extend)
+      EXTENSION="$2"
+      shift
       shift
       ;;
     -d|--download-pkgs)
@@ -781,19 +810,44 @@ do
     fi
 done
 
-if [ -n "$STARTPHASE" ] &&
-[ "$STARTPHASE" != 1 -a "$STARTPHASE" != 2 -a "$STARTPHASE" != 3 -a "$STARTPHASE" != 4 ]
+if [ -n "$STARTPHASE" ]
 then
-    echo "ERROR: phase '$STARTPHASE' does not exist."
-    exit 1
-elif [ -n "$STARTPKG" -a -z "$STARTPHASE" ]
+    if ! [[ "$STARTPHASE" =~ ^[1-5]$ ]]
+    then
+        echo "ERROR: -p|--start-phase must specify a number between 1 and 5."
+        exit 1
+    elif [ "$STARTPHASE" -eq 5 ] && [ -z "$EXTENSION" ]
+    then
+        echo "ERROR: phase 5 only exists if an -x|--extend has been specified."
+        exit 1
+    elif [ ! -f $LFS_IMG ]
+    then
+        echo "ERROR: $LFS_IMG not found - cannot start from phase $STARTPHASE."
+        exit 1
+    fi
+fi
+
+if [ -n "$STARTPKG" -a -z "$STARTPHASE" ]
 then
     echo "ERROR: -p|--start-phase must be defined if -a|--start-package is defined."
     exit 1
-elif $ONEOFF && [ -z "$STARTPHASE" -a -z "$STARTPKG" ]
+elif $ONEOFF && [ -z "$STARTPHASE" ]
 then
-    echo "ERROR: -o|--one-off has no effect without a starting phase and/or package selected."
+    echo "ERROR: -o|--one-off has no effect without a starting phase selected."
     exit 1
+fi
+
+if [ -n "$EXTENSION" ]
+then
+    if ! $BUILDALL && [ -z "$STARTPHASE" ]
+    then
+        echo "ERROR: -x|--extend has no effect without either -b|--build-all or -p|--start-phase set."
+        exit 1
+    elif $ONEOFF && [ "$STARTPHASE" -ne 5 ]
+    then
+        echo "ERROR: -x|--extend has no effect if -o|--one-off is set and -p|--start-phase != 5."
+        exit 1
+    fi
 fi
 
 
@@ -808,20 +862,10 @@ $INIT && init_image && exit
 $MOUNT && mount_image && exit
 $UNMOUNT && unmount_image && exit
 $CLEAN && clean_image && exit
-
-if [ -n "$INSTALL_TGT" ]
-then
-    install_image
-    exit
-fi
+[ -n "$INSTALL_TGT" ] && install_image && exit
 
 if [ -n "$STARTPHASE" ]
 then
-    if [ ! -f $LFS_IMG ]
-    then
-        echo "ERROR: $LFS_IMG not found - cannot start from phase $STARTPHASE."
-        exit 1
-    fi
     mount_image
 elif $BUILDALL
 then
@@ -836,7 +880,6 @@ CONFIG_SITE=$LFS/usr/share/config.site
 LC_ALL=POSIX
 export LC_ALL PATH CONFIG_SITE
 
-trap "echo 'build successful.' && exit" EXIT
 trap "echo 'build cancelled.' && cd $FULLPATH && unmount_image && exit" SIGINT
 trap "echo 'build failed.' && cd $FULLPATH && unmount_image && exit 1" ERR
 
@@ -859,6 +902,16 @@ $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
 
 build_phase 4
 
+$ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
+
+if [ -n "$EXTENSION" ]
+then
+    source $EXTENSION/pkgs.sh
+    download_pkgs $EXTENSION
+    cp $EXTENSION/pkgs/* $LFS/sources/
+    build_phase 5
+fi
+
 # final cleanup
 rm -rf $LFS/tmp/*
 find $LFS/usr/lib $LFS/usr/libexec -name \*.la -delete
@@ -869,3 +922,4 @@ sed -i 's/^.*tester.*$//' $LFS/etc/{passwd,group}
 # unmount and detatch image
 unmount_image
 
+echo "build successful."

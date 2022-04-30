@@ -9,7 +9,7 @@ case $(uname -m) in
     ;;
 esac
 
-patch -Np1 -i ../$PATCH_GLIBC
+patch -Np1 -i ../$(basename $PATCH_GLIBC)
 
 mkdir build
 cd build

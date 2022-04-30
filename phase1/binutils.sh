@@ -1,7 +1,5 @@
 # Bintuils Phase 1
 
-echo $PATCH_BINUTILS
-
 mkdir build
 cd build
 
