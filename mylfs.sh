@@ -438,8 +438,7 @@ function build_package {
     local SCRIPT_PATH=$([ $PHASE -eq 5 ] && echo $EXTENSION/${NAME}.sh || echo ./phase${PHASE}/${NAME}.sh)
 
     local BUILD_INSTR="
-        set -e
-        $VERBOSE && set -x
+        set -ex
         pushd sources > /dev/null
         rm -rf $NAME
         mkdir $NAME
@@ -448,7 +447,6 @@ function build_package {
         $(cat $SCRIPT_PATH)
         popd
         rm -r sources/$NAME
-        set +x
     "
 
     pushd $LFS > /dev/null
