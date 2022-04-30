@@ -37,7 +37,10 @@ on the device you specify.
                             with the rest of the build.
                             
         -b|--build-all      Run the entire script from beginning to end.
-        
+
+        -x|--extend         Pass in the path to a custom build extension. See the
+                            'example_extension' directory for reference.
+
         -d|--download-pkgs  Download all packages into the 'pkgs' directory, then
                             exit.
                             
@@ -120,7 +123,14 @@ Another example. Say you just changed your kernel config file a bit and need to 
 ```sh
 sudo ./mylfs.sh --start-phase 4 --start-package linux --one-off
 ```
-The `--one-off` flag tells the script to exit once the starting package has been completed.  
+The `--one-off` flag tells the script to exit once the starting package has been completed.
+
+
+The real magic of MyLFS is that you can apply "extensions" to the script in order to automatically customize your LFS system.
+```sh
+sudo ./mylfs.sh --build-all --extend ./example_extension
+```
+Details on how extensions work can be found in `example_extension/README`.
 
 
 If you want to poke around inside the image file without booting into it, you can simply use the `--mount` command like so:

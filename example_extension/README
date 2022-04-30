@@ -28,8 +28,8 @@ How to create an extension:
     # Each variable name should have either
     # a "PKG_" or a "PATCH_" prefix.
 
-    export PKG_LYNX=<lynx tarball download>
-    export PATCH_LYNX=<lynx patch download>
+    export PKG_LYNX=<lynx tarball URL>
+    export PATCH_LYNX=<lynx patch URL>
 
     # don't add any other code, since this
     # file is both 'sourced' and parsed by
@@ -107,11 +107,20 @@ How to create an extension:
     ```
 
 
-- More Notes:
+More Notes:
 
-    The logs of the build outputs for each of the packages in the extension
-    will be saved to the "MyLFS/logs/" directory, alongside the LFS logs.
+- The logs of the build outputs for each of the packages in the extension
+  will be saved to the "MyLFS/logs/" directory, alongside the LFS logs.
 
-    The package tarballs for extensions will be saved to "<extension-dir>/pkgs/",
-    separate from the LFS packages that are kept in "MyLFS/pkgs/".
+- The package tarballs for extensions will be saved to "<extension-dir>/pkgs/",
+  separate from the LFS packages that are kept in "MyLFS/pkgs/".
+
+- mylfs.sh treats extensions as a fifth phase, ontop of the four builtin phases.
+  Therefore, if you want to have the script jump straight to your extension
+  scripts on an already built lfs.img, specify the following when running
+  the script:
+
+    sudo ./mylfs.sh --extend path/to/extension --start-phase 5
+
+  Note the '--start-phase 5' bit.
 
