@@ -222,10 +222,14 @@ function init_image {
 
     # reattach loop device to re-read partition table
     losetup -d $LOOP
+
     sleep 1 # give the kernel a sec
+
     losetup -P $LOOP $LFS_IMG
 
-    PARTUUID=$(lsblk -o PARTUUID $LOOP | tail -1) # needed for grub.cfg
+    sleep 1 # give the kernel another sec
+
+    LFSPARTUUID=$(lsblk -o PARTUUID $LOOP | tail -1) # needed for grub.cfg
 
     # setup root partition
     mkfs -t $LFS_FS $LOOP_P1 &> /dev/null
@@ -286,7 +290,7 @@ function init_image {
     install_template ./templates/etc__lsb-release LFS_VERSION
     install_template ./templates/etc__os-release LFS_VERSION
     install_template ./templates/etc__fstab LFSROOTLABEL LFSFSTYPE
-    install_template ./templates/boot__grub__grub.cfg LFSROOTLABEL PARTUUID
+    install_template ./templates/boot__grub__grub.cfg LFSROOTLABEL LFSPARTUUID
 
     # make special device files
     mknod -m 600 $LFS/dev/console c 5 1
@@ -450,29 +454,28 @@ function build_package {
     "
 
     pushd $LFS > /dev/null
+
     if $CHROOT
     then
+        echo "Building from chroot environment..."
         chroot "$LFS" /usr/bin/env \
                         HOME=/root \
                         TERM=$TERM \
                         PATH=/usr/bin:/usr/sbin \
                         /usr/bin/bash +h -c "$BUILD_INSTR" |& { $VERBOSE && tee $LOG_FILE || cat > $LOG_FILE; }
-        if [ ${PIPESTATUS[0]} -ne 0 ]
-        then
-            echo -e "\nERROR: $NAME Phase $PHASE failed:"
-            tail $LOG_FILE
-            return 1
-        fi
     else
-        (eval "$BUILD_INSTR") |& { $VERBOSE && tee $LOG_FILE || cat > $LOG_FILE; }
-        if [ ${PIPESTATUS[0]} -ne 0 ]
-        then
-            set +x
-            echo -e "\nERROR: $NAME phase $PHASE failed:"
-            tail $LOG_FILE
-            return 1
-        fi
+        echo "Building from host system..."
+        eval "$BUILD_INSTR" |& { $VERBOSE && tee $LOG_FILE || cat > $LOG_FILE; }
     fi
+
+    if [ $PIPESTATUS -ne 0 ]
+    then
+        set +x
+        echo -e "\nERROR: $NAME phase $PHASE failed:"
+        tail $LOG_FILE
+        return 1
+    fi
+
     popd > /dev/null
 
     if $KEEP_LOGS
@@ -526,6 +529,9 @@ function build_phase {
     # Phase 5 == a build extension
     [ $PHASE -eq 5 ] && PHASE_DIR=$EXTENSION
 
+    # make sure ./logs/ dir exists
+    mkdir -p $LOG_DIR
+
     while read pkg
     do
         if $FOUNDSTARTPKG && $ONEOFF
@@ -542,7 +548,7 @@ function build_phase {
             if [ "$STARTPKG" == "$(echo $pkg | cut -d" " -f1)" ]
             then
                 FOUNDSTARTPKG=true
-                ! build_package $pkg && return 1
+                build_package $pkg || return 1
             else
                 continue
             fi
@@ -716,7 +722,7 @@ while [ $# -gt 0 ]; do
       exit
       ;;
     -V|--verbose)
-      export VERBOSE=true # exporting for chroot
+      VERBOSE=true
       shift
       ;;
     -e|--check)
@@ -856,7 +862,7 @@ fi
 # Perform single operations
 $CHECKDEPS && check_dependencies && exit
 $DOWNLOAD && download_pkgs && exit
-$INIT && init_image && exit
+$INIT && init_image && unmount_image && exit
 $MOUNT && mount_image && exit
 $UNMOUNT && unmount_image && exit
 $CLEAN && clean_image && exit
