@@ -1,3 +1,5 @@
 *.img
 *.swp
-mnt
+pkgs/
+logs/
+mnt/
