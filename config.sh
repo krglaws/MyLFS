@@ -5,7 +5,7 @@
 FULLPATH=$(cd $(dirname $0) && pwd)
 
 export LFS_VERSION=11.1
-export MAKEFLAGS=-j8
+export KERNELVERS=5.16.9
 export PACKAGE_LIST=$FULLPATH/pkgs.sh
 export PACKAGE_DIR=$FULLPATH/pkgs
 export LOG_DIR=$FULLPATH/logs
@@ -16,14 +16,16 @@ export LFS_TGT=$(uname -m)-lfs-linux-gnu
 export LFS_FS=ext4
 export LFS_IMG=$FULLPATH/lfs.img
 export LFS_IMG_SIZE=$((10*1024*1024*1024)) # 10 GiB
-export ROOT_PASSWD=password
-export RUN_TESTS=false
 export TESTLOG_DIR=$FULLPATH/testlogs
-export LFSHOSTNAME=lfs
 export LFSROOTLABEL=LFSROOT
 export LFSEFILABEL=LFSEFI
 export LFSFSTYPE=ext4
-export KERNELVERS=5.16.9
+
+# configure these like `MAKEFLAGS=-j1 RUN_TESTS=true ./mylfs.sh --build-all`
+export MAKEFLAGS=${MAKEFLAGS:--j8}
+export RUN_TESTS=${RUN_TESTS:-false}
+export ROOT_PASSWD=${ROOT_PASSWD:-password}
+export LFSHOSTNAME=${LFSHOSTNAME:-lfs}
 
 export FDISK_INSTR="
 o       # create DOS partition table
