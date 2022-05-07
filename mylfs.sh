@@ -457,14 +457,12 @@ function build_package {
 
     if $CHROOT
     then
-        echo "Building from chroot environment..."
         chroot "$LFS" /usr/bin/env \
                         HOME=/root \
                         TERM=$TERM \
                         PATH=/usr/bin:/usr/sbin \
                         /usr/bin/bash +h -c "$BUILD_INSTR" |& { $VERBOSE && tee $LOG_FILE || cat > $LOG_FILE; }
     else
-        echo "Building from host system..."
         eval "$BUILD_INSTR" |& { $VERBOSE && tee $LOG_FILE || cat > $LOG_FILE; }
     fi
 
