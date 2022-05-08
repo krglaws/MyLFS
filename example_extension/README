@@ -1,7 +1,5 @@
 This directory contains an example MyLFS extension.
 
-!!! THIS FUNCTIONALITY IS A WORK IN PROGRESS, A LOT OF THIS DOES NOT WORK !!!
-
 What is a MyLFS extension?
     MyLFS by itself builds the Linux From Scratch System V Init version
 almost exactly according to the book. The end result is of course very
@@ -20,7 +18,7 @@ How to create an extension:
     my_extension/
 
 
-- Inside of your repository, add a file called pkgs.sh. This will contain
+- Inside of your repository, add a file called "pkgs.sh". This will contain
   a listing of the URLs of all of the packages your extension will be
   building. The format should look like this:
 
@@ -115,7 +113,7 @@ How to create an extension:
        as-is into the LFS file system. The files should be named according to
        their destination path, except "/" should be replaced with "__".
 
-        For example:
+       For example:
             static/home__user__.bashrc  -> will be copied to /home/user/.bashrc
 
        This will replace any files that already exist with the same name.
@@ -133,9 +131,9 @@ How to create an extension:
 
 
     2. Add a directory called "templates" that contains files named in the
-       same manner as those under "static", the difference being that certain
-       keywords within the files will be replaced. Those keywords should be
-       the same as those of the variables that should replace them.
+       same manner as those under "static", the difference being that you can
+       use environment variables inside the files that will be replaced with
+       their associated values at run-time.
 
        For example:
 
@@ -148,22 +146,16 @@ How to create an extension:
        ```
        # templates/etc__hosts
        127.0.0.1   localhost
-       127.0.1.1   MYHOSTNAME   <-   this will be replaced with "mycoolhostname"
+       127.0.1.1   $MYHOSTNAME   <-   this will be replaced with "mycoolhostname"
        ...
        ```
-
-       Also, keep in mind the script will replace all occurences of strings that are present
-       in the environment, so you may end up with more text replacements than you intended if
-       you aren't careful.
 
 
 More Notes:
 
-- The logs of the build outputs for each of the packages in the extension
-  will be saved to the "MyLFS/logs/" directory, alongside the LFS logs.
-
 - The package tarballs for extensions will be saved to "<extension-dir>/pkgs/",
-  separate from the LFS packages that are kept in "MyLFS/pkgs/".
+  separate from the LFS packages that are kept in "MyLFS/pkgs/". The same is true
+  for the extension build logs, which will be kept in "<extension-dir>/logs/".
 
 - mylfs.sh treats extensions as a fifth phase, ontop of the four builtin phases.
   Therefore, if you want to have the script jump straight to your extension

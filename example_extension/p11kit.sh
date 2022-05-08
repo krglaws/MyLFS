@@ -1,4 +1,4 @@
-# p11-kit
+# p11kit
 
 sed '20,$ d' -i trust/trust-extract-compat
 
@@ -32,3 +32,4 @@ ln -sf /usr/libexec/p11-kit/trust-extract-compat \
        /usr/bin/update-ca-certificates
 
 ln -sfv ./pkcs11/p11-kit-trust.so /usr/lib/libnssckbi.so
+

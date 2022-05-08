@@ -1,5 +1,4 @@
-make install
-install -dm755 /etc/ssl/local
+# makeca_certs
 
 /usr/sbin/make-ca -g
 
@@ -9,5 +8,4 @@ install -dm755 /etc/ssl/local
 #/usr/sbin/make-ca -g
 #EOF
 #chmod 754 /etc/cron.weekly/update-pki.sh
-
 
