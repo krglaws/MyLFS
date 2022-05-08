@@ -38,7 +38,7 @@ make modules_install
 
 cp ./.config /boot/$CONFIGFILE
 
-cp arch/x86_64/boot/bzImage /boot/vmlinuz-$KERNELVERS-lfs-11.1
+cp arch/x86_64/boot/bzImage /boot/vmlinuz-$KERNELVERS-lfs-$LFS_VERSION
 
 cp System.map /boot/System.map-$KERNELVERS
 
