@@ -155,19 +155,14 @@ function install_static {
     local FILENAME=$1
     local FULLPATH="$LFS/$(basename $FILENAME | sed 's/__/\//g')"
     mkdir -p $(dirname $FULLPATH)
-    cp $FILENAME $FULLPATH
+    cp -f $FILENAME $FULLPATH
 }
 
 function install_template {
     local FILENAME=$1
     local FULLPATH="$LFS/$(basename $FILENAME | sed 's/__/\//g')"
     mkdir -p $(dirname $FULLPATH)
-    cp $FILENAME $FULLPATH
-    shift
-    for var in $@
-    do
-        sed -i "s/$var/${!var}/g" $FULLPATH
-    done
+    cat $FILENAME | envsubst > $FULLPATH
 }
 
 function init_image {
@@ -275,9 +270,9 @@ function init_image {
 
     # install static files
     echo $LFSHOSTNAME > $LFS/etc/hostname
-    for file in ./static/*
+    for f in ./static/*
     do
-        install_static $file
+        install_static $f
     done
     if [ -n "$KERNELCONFIG" ]
     then
@@ -285,12 +280,10 @@ function init_image {
     fi
 
     # install templates
-    install_template ./templates/etc__hosts LFSHOSTNAME
-    install_template ./templates/etc__lfs-release LFS_VERSION
-    install_template ./templates/etc__lsb-release LFS_VERSION
-    install_template ./templates/etc__os-release LFS_VERSION
-    install_template ./templates/etc__fstab LFSROOTLABEL LFSFSTYPE
-    install_template ./templates/boot__grub__grub.cfg LFSROOTLABEL LFSPARTUUID
+    for f in ./templates/*
+    do
+        install_template $f
+    done
 
     # make special device files
     mknod -m 600 $LFS/dev/console c 5 1
@@ -334,7 +327,6 @@ function download_pkgs {
         local PACKAGE_LIST=$1/pkgs.sh
     fi
 
-    [ -d "$PACKAGE_DIR" ] || mkdir "$PACKAGE_DIR"
     [ -f "$PACKAGE_LIST" ] || { echo "ERROR: $PACKAGE_LIST is missing." && exit 1; }
 
     local PACKAGE_URLS=$(cat $PACKAGE_LIST | grep "^[^#]" | cut -d"=" -f2)
@@ -438,7 +430,7 @@ function build_package {
     local PKG_NAME=PKG_$([ -n "$NAME_OVERRIDE" ] && echo $NAME_OVERRIDE || echo $NAME | tr a-z A-Z)
     PKG_NAME=$(basename ${!PKG_NAME})
 
-    local LOG_FILE=$LOG_DIR/${NAME}_phase${PHASE}.log
+    local LOG_FILE=$([ $PHASE -eq 5 ] && echo "$EXTENSION/logs/${NAME}.log" || echo "$LOG_DIR/${NAME}_phase${PHASE}.log")
     local SCRIPT_PATH=$([ $PHASE -eq 5 ] && echo $EXTENSION/${NAME}.sh || echo ./phase${PHASE}/${NAME}.sh)
 
     local BUILD_INSTR="
@@ -551,7 +543,7 @@ function build_phase {
                 continue
             fi
         else
-            build_package $pkg
+            build_package $pkg || return 1
         fi
 
     done < $PHASE_DIR/build_order.txt
@@ -567,10 +559,67 @@ function build_phase {
     return 0
 }
 
+function build_extension {
+    if [ $UID -ne 0 ]
+    then
+        echo "ERROR: must be run as root."
+        return 1
+    elif [ ! -d "$EXTENSION" ]
+    then
+        echo "ERROR: extension '$EXTENSION' is not a directory, or does not exist."
+        return 1
+    elif [ ! -f "$EXTENSION/pkgs.sh" ]
+    then
+        echo "ERROR: extension '$EXTENSION' is missing a 'pkgs.sh' file."
+        return 1
+    elif [ ! -f "$EXTENSION/build_order.txt" ]
+    then
+        echo "ERROR: extension '$EXTENSION' is missing a 'build_order.txt' file."
+        return 1
+    fi
+
+    mkdir -p $EXTENSION/{logs,pkgs}
+
+    # read in extension config.sh if present
+    [ -f "$EXTENSION/config.sh" ] && source "$EXTENSION/config.sh"
+
+    # read pkgs.sh
+    source "$EXTENSION/pkgs.sh"
+
+    # download extension packages
+    download_pkgs $EXTENSION
+
+    $VERBOSE && set -x
+
+    # copy packages onto LFS image
+    cp -f $EXTENSION/pkgs/* $LFS/sources/
+
+    # install static files if present
+    if [ -d "$EXTENSION/static" ]
+    then
+        for f in $EXTENSION/static/*
+        do
+            install_static $f
+        done
+    fi
+
+    # install template files if present
+    if [ -d "$EXTENSION/templates" ]
+    then
+        for f in $EXTENSION/templates/*
+        do
+            install_template $f
+        done
+    fi
+
+    # build extension
+    build_phase 5 || return 1
+}
+
 function install_image {
     if [ $UID -ne 0 ]
     then
-        echo "ERROR: must be run as root"
+        echo "ERROR: must be run as root."
         exit 1
     fi
 
@@ -849,7 +898,13 @@ then
     then
         echo "ERROR: -x|--extend has no effect if -o|--one-off is set and -p|--start-phase != 5."
         exit 1
+    elif [ ! -d "$EXTENSION" ]
+    then
+        echo "ERROR: '$EXTENSION' is not a directory or does not exist."
     fi
+
+    # get full path to extension
+    EXTENSION="$(cd $(dirname $EXTENSION) && pwd)/$(basename $EXTENSION)"
 fi
 
 
@@ -906,13 +961,7 @@ build_phase 4
 
 $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
 
-if [ -n "$EXTENSION" ]
-then
-    source $EXTENSION/pkgs.sh
-    download_pkgs $EXTENSION
-    cp $EXTENSION/pkgs/* $LFS/sources/
-    build_phase 5
-fi
+[ -n "$EXTENSION" ] && build_extension
 
 # final cleanup
 rm -rf $LFS/tmp/*
