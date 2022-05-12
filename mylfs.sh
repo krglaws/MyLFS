@@ -488,6 +488,8 @@ function build_phase {
     fi
 
     PHASE=$1
+    PHASETYPE=lfs
+    if ! [ -e $2 ]; then PHASETYPE=$2; fi
 
     if [ -n "$STARTPHASE" ]
     then
@@ -500,7 +502,7 @@ function build_phase {
         fi
     fi
 
-    if [ $PHASE -ne 1 -a ! -f $LFS/root/.phase$((PHASE-1)) ]
+    if [ $PHASE -ne 1 -a ! -f $LFS/root/.$($PHASETYPE)_phase$((PHASE-1)) ]
     then
         echo "ERROR: phases preceeding phase $PHASE have not been built"
         return 1
@@ -509,15 +511,18 @@ function build_phase {
     echo -e "# #######\n# Phase $PHASE\n# ~~~~~~~"
 
     CHROOT=false
-    if [ $PHASE -gt 2 ]
-    then
-        CHROOT=true
-    fi
+#    if [ $PHASE -gt 2 ]
+#    then
+#        CHROOT=true
+#    fi
 
-    local PHASE_DIR=./phase$PHASE 
+    local PHASE_DIR=./$($PHASETYPE)_phase$PHASE 
 
     # Phase 5 == a build extension
-    [ $PHASE -eq 5 ] && PHASE_DIR=$EXTENSION
+#    [ $PHASE -eq 5 ] && PHASE_DIR=$EXTENSION
+    
+    # Load Phase additional configs
+    . $PHASEDIR/config.sh
 
     # make sure ./logs/ dir exists
     mkdir -p $LOG_DIR
@@ -554,7 +559,7 @@ function build_phase {
         return 1
     fi
 
-    touch $LFS/root/.phase$PHASE
+    touch $LFS/root/.$($PHASETYPE)_phase$PHASE
 
     return 0
 }
@@ -736,6 +741,76 @@ function clean_image {
     fi
 }
 
+function mainLFSbuild {
+    # ###############
+    # Start LFS build
+    # ~~~~~~~~~~~~~~~
+
+    # Perform single operations
+    $CHECKDEPS && check_dependencies && exit
+    $DOWNLOAD && download_pkgs && exit
+    $INIT && init_image && unmount_image && exit
+    $MOUNT && mount_image && exit
+    $UNMOUNT && unmount_image && exit
+    $CLEAN && clean_image && exit
+    [ -n "$INSTALL_TGT" ] && install_image && exit
+
+    if [ -n "$STARTPHASE" ]
+    then
+        mount_image
+    elif $BUILDALL
+    then
+        init_image
+    else
+        usage
+        exit
+    fi
+
+    PATH=$LFS/tools/bin:$PATH
+    CONFIG_SITE=$LFS/usr/share/config.site
+    LC_ALL=POSIX
+    export LC_ALL PATH CONFIG_SITE
+
+    trap "echo 'build cancelled.' && cd $FULLPATH && unmount_image && exit" SIGINT
+    trap "echo 'build failed.' && cd $FULLPATH && unmount_image && exit 1" ERR
+
+    build_phase 1
+
+    $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
+
+    build_phase 2
+
+    $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
+
+    build_phase 3
+
+    # phase 3 cleanup
+    rm -rf $LFS/usr/share/{info,man,doc}/*
+    find $LFS/usr/{lib,libexec} -name \*.la -delete
+    rm -rf $LFS/tools
+
+    $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
+
+    build_phase 4
+
+    $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
+
+    [ -n "$EXTENSION" ] && build_extension
+
+    # final cleanup
+    rm -rf $LFS/tmp/*
+    find $LFS/usr/lib $LFS/usr/libexec -name \*.la -delete
+    find $LFS/usr -depth -name $LFS_TGT\* | xargs rm -rf
+    rm -rf $LFS/home/tester
+    sed -i 's/^.*tester.*$//' $LFS/etc/{passwd,group}
+
+    # unmount and detatch image
+    unmount_image
+
+    echo "build successful."
+
+}
+
 
 # ###############
 # Parse arguments
@@ -906,71 +981,6 @@ then
     # get full path to extension
     EXTENSION="$(cd $(dirname $EXTENSION) && pwd)/$(basename $EXTENSION)"
 fi
+mainLFSbuild
 
 
-# ###########
-# Start build
-# ~~~~~~~~~~~
-
-# Perform single operations
-$CHECKDEPS && check_dependencies && exit
-$DOWNLOAD && download_pkgs && exit
-$INIT && init_image && unmount_image && exit
-$MOUNT && mount_image && exit
-$UNMOUNT && unmount_image && exit
-$CLEAN && clean_image && exit
-[ -n "$INSTALL_TGT" ] && install_image && exit
-
-if [ -n "$STARTPHASE" ]
-then
-    mount_image
-elif $BUILDALL
-then
-    init_image
-else
-    usage
-    exit
-fi
-
-PATH=$LFS/tools/bin:$PATH
-CONFIG_SITE=$LFS/usr/share/config.site
-LC_ALL=POSIX
-export LC_ALL PATH CONFIG_SITE
-
-trap "echo 'build cancelled.' && cd $FULLPATH && unmount_image && exit" SIGINT
-trap "echo 'build failed.' && cd $FULLPATH && unmount_image && exit 1" ERR
-
-build_phase 1
-
-$ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
-
-build_phase 2
-
-$ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
-
-build_phase 3
-
-# phase 3 cleanup
-rm -rf $LFS/usr/share/{info,man,doc}/*
-find $LFS/usr/{lib,libexec} -name \*.la -delete
-rm -rf $LFS/tools
-
-$ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
-
-build_phase 4
-
-$ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
-
-[ -n "$EXTENSION" ] && build_extension
-
-# final cleanup
-rm -rf $LFS/tmp/*
-find $LFS/usr/lib $LFS/usr/libexec -name \*.la -delete
-find $LFS/usr -depth -name $LFS_TGT\* | xargs rm -rf
-rm -rf $LFS/home/tester
-sed -i 's/^.*tester.*$//' $LFS/etc/{passwd,group}
-
-# unmount and detatch image
-unmount_image
-
-echo "build successful."
