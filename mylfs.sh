@@ -425,13 +425,13 @@ function build_package {
     local NAME=$1
     local NAME_OVERRIDE=$2
 
-    { $VERBOSE && echo "Building $NAME phase $PHASE..."; } || echo -n "Building $NAME phase $PHASE... "
+    { $VERBOSE && echo "Building $NAME in $PHASETYPE system. phase $PHASE..."; } || echo -n "Building $NAME in $PHASETYPE system. phase $PHASE... "
 
     local PKG_NAME=PKG_$([ -n "$NAME_OVERRIDE" ] && echo $NAME_OVERRIDE || echo $NAME | tr a-z A-Z)
     PKG_NAME=$(basename ${!PKG_NAME})
 
     local LOG_FILE=$([ $PHASE -eq 5 ] && echo "$EXTENSION/logs/${NAME}.log" || echo "$LOG_DIR/${NAME}_phase${PHASE}.log")
-    local SCRIPT_PATH=$([ $PHASE -eq 5 ] && echo $EXTENSION/${NAME}.sh || echo ./phase${PHASE}/${NAME}.sh)
+    local SCRIPT_PATH=$([ $PHASE -eq 5 ] && echo $EXTENSION/${NAME}.sh || echo ./${PHASETYPE}_phase${PHASE}/${NAME}.sh)
 
     local BUILD_INSTR="
         set -ex
@@ -461,7 +461,7 @@ function build_package {
     if [ $PIPESTATUS -ne 0 ]
     then
         set +x
-        echo -e "\nERROR: $NAME phase $PHASE failed:"
+        echo -e "\nERROR: $NAME in $PHASETYPE phase $PHASE failed:"
         tail $LOG_FILE
         return 1
     fi
@@ -502,7 +502,7 @@ function build_phase {
         fi
     fi
 
-    if [ $PHASE -ne 1 -a ! -f $LFS/root/.$($PHASETYPE)_phase$((PHASE-1)) ]
+    if [ $PHASE -ne 1 -a ! -f $LFS/root/.${PHASETYPE}_phase$((PHASE-1)) ]
     then
         echo "ERROR: phases preceeding phase $PHASE have not been built"
         return 1
@@ -516,13 +516,11 @@ function build_phase {
 #        CHROOT=true
 #    fi
 
-    local PHASE_DIR=./$($PHASETYPE)_phase$PHASE 
+    local PHASE_DIR=./${PHASETYPE}_phase$PHASE
 
-    # Phase 5 == a build extension
-#    [ $PHASE -eq 5 ] && PHASE_DIR=$EXTENSION
-    
     # Load Phase additional configs
-    . $PHASEDIR/config.sh
+    # This makes this functio universal for LFS/BLFS/CLFS
+    . $PHASE_DIR/config.sh
 
     # make sure ./logs/ dir exists
     mkdir -p $LOG_DIR
@@ -559,7 +557,7 @@ function build_phase {
         return 1
     fi
 
-    touch $LFS/root/.$($PHASETYPE)_phase$PHASE
+    touch $LFS/root/.${PHASETYPE}_phase$PHASE
 
     return 0
 }
@@ -774,15 +772,15 @@ function mainLFSbuild {
     trap "echo 'build cancelled.' && cd $FULLPATH && unmount_image && exit" SIGINT
     trap "echo 'build failed.' && cd $FULLPATH && unmount_image && exit 1" ERR
 
-    build_phase 1
+    build_phase 1 lfs
 
     $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
 
-    build_phase 2
+    build_phase 2 lfs
 
     $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
 
-    build_phase 3
+    build_phase 3 lfs
 
     # phase 3 cleanup
     rm -rf $LFS/usr/share/{info,man,doc}/*
@@ -791,7 +789,7 @@ function mainLFSbuild {
 
     $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
 
-    build_phase 4
+    build_phase 4 lfs
 
     $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
 
@@ -827,7 +825,9 @@ source ./pkgs.sh
 
 VERBOSE=false
 CHECKDEPS=false
-BUILDALL=false
+BUILD_LFS=false
+BUILD_BLFS=false
+BUILD_CLFS=false
 DOWNLOAD=false
 INIT=false
 ONEOFF=false
@@ -851,8 +851,16 @@ while [ $# -gt 0 ]; do
       CHECKDEPS=true
       shift
       ;;
-    -b|--build-all)
-      BUILDALL=true
+    -b|--build-lfs)
+      BUILD_LFS=true
+      shift
+      ;;
+    -b|--build-blfs)
+      BUILD_BLFS=true
+      shift
+      ;;
+    -b|--build-clfs)
+      BUILD_CLFS=true
       shift
       ;;
     -x|--extend)
@@ -921,7 +929,23 @@ while [ $# -gt 0 ]; do
 done
 
 OPCOUNT=0
-for OP in BUILDALL CHECKDEPS DOWNLOAD INIT STARTPHASE MOUNT UNMOUNT INSTALL_TGT CLEAN
+for OP in CHECKDEPS DOWNLOAD INIT STARTPHASE MOUNT UNMOUNT INSTALL_TGT CLEAN
+do
+    OP="${!OP}"
+    if [ -n "$OP" -a "$OP" != "false" ]
+    then
+        OPCOUNT=$((OPCOUNT+1))
+    fi
+
+    if [ $OPCOUNT -gt 1 ]
+    then
+        echo "ERROR: too many options."
+        exit 1
+    fi
+done
+
+OPCOUNT=0
+for OP in BUILD_LFS BUILD_BLFS BUILD_CLFS
 do
     OP="${!OP}"
     if [ -n "$OP" -a "$OP" != "false" ]
