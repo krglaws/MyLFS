@@ -186,9 +186,6 @@ function init_image {
         fi
     fi
 
-    # download packages into ./pkgs directory
-    download_pkgs
-
     echo -n "Creating image file... "
 
     trap "echo 'init failed.' && exit 1" ERR
@@ -917,7 +914,7 @@ fi
 # Perform single operations
 $CHECKDEPS && check_dependencies && exit
 $DOWNLOAD && download_pkgs && exit
-$INIT && init_image && unmount_image && exit
+$INIT && download_pkgs && init_image && unmount_image && exit
 $MOUNT && mount_image && exit
 $UNMOUNT && unmount_image && exit
 $CLEAN && clean_image && exit
@@ -925,9 +922,11 @@ $CLEAN && clean_image && exit
 
 if [ -n "$STARTPHASE" ]
 then
+    download_pkgs
     mount_image
 elif $BUILDALL
 then
+    download_pkgs
     init_image
 else
     usage
