@@ -826,9 +826,7 @@ source ./pkgs.sh
 
 VERBOSE=false
 CHECKDEPS=false
-BUILD_LFS=false
-BUILD_BLFS=false
-BUILD_CLFS=false
+BUILDALL=false
 DOWNLOAD=false
 INIT=false
 ONEOFF=false
@@ -852,16 +850,8 @@ while [ $# -gt 0 ]; do
       CHECKDEPS=true
       shift
       ;;
-    -b|--build-lfs)
-      BUILD_LFS=true
-      shift
-      ;;
-    -b|--build-blfs)
-      BUILD_BLFS=true
-      shift
-      ;;
-    -b|--build-clfs)
-      BUILD_CLFS=true
+    -b|--build-all)
+      BUILDALL=true
       shift
       ;;
     -x|--extend)
@@ -930,23 +920,7 @@ while [ $# -gt 0 ]; do
 done
 
 OPCOUNT=0
-for OP in CHECKDEPS DOWNLOAD INIT STARTPHASE MOUNT UNMOUNT INSTALL_TGT CLEAN
-do
-    OP="${!OP}"
-    if [ -n "$OP" -a "$OP" != "false" ]
-    then
-        OPCOUNT=$((OPCOUNT+1))
-    fi
-
-    if [ $OPCOUNT -gt 1 ]
-    then
-        echo "ERROR: too many options."
-        exit 1
-    fi
-done
-
-OPCOUNT=0
-for OP in BUILD_LFS BUILD_BLFS BUILD_CLFS
+for OP in BUILDALL CHECKDEPS DOWNLOAD INIT STARTPHASE MOUNT UNMOUNT INSTALL_TGT CLEAN
 do
     OP="${!OP}"
     if [ -n "$OP" -a "$OP" != "false" ]
@@ -1006,5 +980,6 @@ then
     # get full path to extension
     EXTENSION="$(cd $(dirname $EXTENSION) && pwd)/$(basename $EXTENSION)"
 fi
+
 mainLFSbuild
 
