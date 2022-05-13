@@ -327,6 +327,8 @@ function download_pkgs {
         local PACKAGE_LIST=$1/pkgs.sh
     fi
 
+    mkdir -p $PACKAGE_DIR
+
     [ -f "$PACKAGE_LIST" ] || { echo "ERROR: $PACKAGE_LIST is missing." && exit 1; }
 
     local PACKAGE_URLS=$(cat $PACKAGE_LIST | grep "^[^#]" | cut -d"=" -f2)
