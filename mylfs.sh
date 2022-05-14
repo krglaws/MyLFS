@@ -82,14 +82,14 @@ function check_dependency {
     if ! command -v $PROG &> /dev/null
     then
         echo "ERROR: '$PROG' not found"
-        return 1
+        return
     fi
 
     echo -e "$PROG:\n" \
             "  Minimum: $MINVERS, Maximum: $MAXVERS\n" \
             "  You have: $($PROG --version | head -n 1)"
 
-    return 0
+    return
 }
 
 function kernel_vers {
@@ -101,42 +101,38 @@ function perl_vers {
 }
 
 function check_dependencies {
-    local EXIT_STATUS=0
-
-    if ! check_dependency bash        3.2        ; then EXIT_STATUS=1; fi
-    if ! check_dependency ld          2.13.1 2.38; then EXIT_STATUS=1; fi  # binutils
-    if ! check_dependency bison       2.7        ; then EXIT_STATUS=1; fi
-    if ! check_dependency chown       6.9        ; then EXIT_STATUS=1; fi  # coreutils
-    if ! check_dependency diff        2.8.1      ; then EXIT_STATUS=1; fi
-    if ! check_dependency find        4.2.31     ; then EXIT_STATUS=1; fi
-    if ! check_dependency gawk        4.0.1      ; then EXIT_STATUS=1; fi
-    if ! check_dependency gcc         4.8 11.2.0 ; then EXIT_STATUS=1; fi
-    if ! check_dependency g++         4.8 11.2.0 ; then EXIT_STATUS=1; fi
-    if ! check_dependency grep        2.5.1a     ; then EXIT_STATUS=1; fi
-    if ! check_dependency gzip        1.3.12     ; then EXIT_STATUS=1; fi
-    if ! check_dependency m4          1.4.10     ; then EXIT_STATUS=1; fi
-    if ! check_dependency make        4.0        ; then EXIT_STATUS=1; fi
-    if ! check_dependency patch       2.5.4      ; then EXIT_STATUS=1; fi
-    if ! check_dependency python3     3.4        ; then EXIT_STATUS=1; fi
-    if ! check_dependency sed         4.1.5      ; then EXIT_STATUS=1; fi
-    if ! check_dependency tar         1.22       ; then EXIT_STATUS=1; fi
-    if ! check_dependency makeinfo    4.7        ; then EXIT_STATUS=1; fi  # texinfo
-    if ! check_dependency xz          5.0.0      ; then EXIT_STATUS=1; fi
-    if ! check_dependency kernel_vers 3.2        ; then EXIT_STATUS=1; fi  # linux
-    if ! check_dependency perl_vers   5.8.8      ; then EXIT_STATUS=1; fi  # perl
+    check_dependency bash        3.2
+    check_dependency ld          2.13.1 2.38
+    check_dependency bison       2.7
+    check_dependency chown       6.9
+    check_dependency diff        2.8.1
+    check_dependency find        4.2.31
+    check_dependency gawk        4.0.1
+    check_dependency gcc         4.8 11.2.0
+    check_dependency g++         4.8 11.2.0
+    check_dependency grep        2.5.1a
+    check_dependency gzip        1.3.1
+    check_dependency m4          1.4.10
+    check_dependency make        4.0
+    check_dependency patch       2.5.4
+    check_dependency python3     3.4
+    check_dependency sed         4.1.5
+    check_dependency tar         1.22
+    check_dependency makeinfo    4.7
+    check_dependency xz          5.0.0
+    check_dependency kernel_vers 3.2
+    check_dependency perl_vers   5.8.8
 
     # check that yacc is a link to bison
     if [ ! -h /usr/bin/yacc -a "$(readlink -f /usr/bin/yacc)"="/usr/bin/bison.yacc" ]
     then
         echo "ERROR: /usr/bin/yacc needs to be a link to /usr/bin/bison.yacc"
-        EXIT_STATUS=1
     fi
 
     # check that awk is a link to gawk
     if [ ! -h /usr/bin/awk -a "$(readlink -f /usr/bin/awk)"="/usr/bin/gawk" ]
     then
         echo "ERROR: /usr/bin/awk needs to be a link to /usr/bin/gawk"
-        EXIT_STATUS=1
     fi
 
     # check G++ compilation
@@ -144,11 +140,8 @@ function check_dependencies {
     if [ ! -x dummy ]
     then
         echo "ERROR: g++ compilation failed"
-        EXIT_STATUS=1
     fi
     rm -f dummy.c dummy
-
-    return $EXIT_STATUS
 }
 
 function install_static {
