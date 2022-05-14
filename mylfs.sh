@@ -325,7 +325,7 @@ function download_pkgs {
     fi
 
     mkdir -p $PACKAGE_DIR
-    
+
     [ -f "$PACKAGE_LIST" ] || { echo "ERROR: $PACKAGE_LIST is missing." && exit 1; }
 
     local PACKAGE_URLS=$(cat $PACKAGE_LIST | grep "^[^#]" | cut -d"=" -f2)
@@ -424,13 +424,13 @@ function build_package {
     local NAME=$1
     local NAME_OVERRIDE=$2
 
-    { $VERBOSE && echo "Building $NAME in $PHASETYPE system. phase $PHASE..."; } || echo -n "Building $NAME in $PHASETYPE system. phase $PHASE... "
+    { $VERBOSE && echo "Building $NAME phase $PHASE..."; } || echo -n "Building $NAME phase $PHASE... "
 
     local PKG_NAME=PKG_$([ -n "$NAME_OVERRIDE" ] && echo $NAME_OVERRIDE || echo $NAME | tr a-z A-Z)
     PKG_NAME=$(basename ${!PKG_NAME})
 
     local LOG_FILE=$([ $PHASE -eq 5 ] && echo "$EXTENSION/logs/${NAME}.log" || echo "$LOG_DIR/${NAME}_phase${PHASE}.log")
-    local SCRIPT_PATH=$([ $PHASE -eq 5 ] && echo $EXTENSION/${NAME}.sh || echo ./${PHASETYPE}_phase${PHASE}/${NAME}.sh)
+    local SCRIPT_PATH=$([ $PHASE -eq 5 ] && echo $EXTENSION/${NAME}.sh || echo ./phase${PHASE}/${NAME}.sh)
 
     local BUILD_INSTR="
         set -ex
@@ -460,7 +460,7 @@ function build_package {
     if [ $PIPESTATUS -ne 0 ]
     then
         set +x
-        echo -e "\nERROR: $NAME in $PHASETYPE phase $PHASE failed:"
+        echo -e "\nERROR: $NAME phase $PHASE failed:"
         tail $LOG_FILE
         return 1
     fi
@@ -487,8 +487,6 @@ function build_phase {
     fi
 
     PHASE=$1
-    PHASETYPE=lfs
-    if ! [ -e $2 ]; then PHASETYPE=$2; fi
 
     if [ -n "$STARTPHASE" ]
     then
@@ -501,7 +499,7 @@ function build_phase {
         fi
     fi
 
-    if [ $PHASE -ne 1 -a ! -f $LFS/root/.${PHASETYPE}_phase$((PHASE-1)) ]
+    if [ $PHASE -ne 1 -a ! -f $LFS/root/.phase$((PHASE-1)) ]
     then
         echo "ERROR: phases preceeding phase $PHASE have not been built"
         return 1
@@ -510,16 +508,15 @@ function build_phase {
     echo -e "# #######\n# Phase $PHASE\n# ~~~~~~~"
 
     CHROOT=false
-#    if [ $PHASE -gt 2 ]
-#    then
-#        CHROOT=true
-#    fi
+    if [ $PHASE -gt 2 ]
+    then
+        CHROOT=true
+    fi
 
-    local PHASE_DIR=./${PHASETYPE}_phase$PHASE
+    local PHASE_DIR=./phase$PHASE 
 
-    # Load Phase additional configs
-    # This makes this functio universal for LFS/BLFS/CLFS
-    . $PHASE_DIR/config.sh
+    # Phase 5 == a build extension
+    [ $PHASE -eq 5 ] && PHASE_DIR=$EXTENSION
 
     # make sure ./logs/ dir exists
     mkdir -p $LOG_DIR
@@ -556,7 +553,7 @@ function build_phase {
         return 1
     fi
 
-    touch $LFS/root/.${PHASETYPE}_phase$PHASE
+    touch $LFS/root/.phase$PHASE
 
     return 0
 }
@@ -738,78 +735,6 @@ function clean_image {
     fi
 }
 
-function mainLFSbuild {
-    # ###############
-    # Start LFS build
-    # ~~~~~~~~~~~~~~~
-
-    # Perform single operations
-    $CHECKDEPS && check_dependencies && exit
-    $DOWNLOAD && download_pkgs && exit
-    $INIT && download_pkgs && init_image && unmount_image && exit
-    $MOUNT && mount_image && exit
-    $UNMOUNT && unmount_image && exit
-    $CLEAN && clean_image && exit
-    [ -n "$INSTALL_TGT" ] && install_image && exit
-
-    if [ -n "$STARTPHASE" ]
-    then
-        download_pkgs
-        mount_image
-    elif $BUILDALL
-    then
-        download_pkgs
-        init_image
-    else
-        usage
-        exit
-    fi
-
-    PATH=$LFS/tools/bin:$PATH
-    CONFIG_SITE=$LFS/usr/share/config.site
-    LC_ALL=POSIX
-    export LC_ALL PATH CONFIG_SITE
-
-    trap "echo 'build cancelled.' && cd $FULLPATH && unmount_image && exit" SIGINT
-    trap "echo 'build failed.' && cd $FULLPATH && unmount_image && exit 1" ERR
-
-    build_phase 1 lfs
-
-    $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
-
-    build_phase 2 lfs
-
-    $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
-
-    build_phase 3 lfs
-
-    # phase 3 cleanup
-    rm -rf $LFS/usr/share/{info,man,doc}/*
-    find $LFS/usr/{lib,libexec} -name \*.la -delete
-    rm -rf $LFS/tools
-
-    $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
-
-    build_phase 4 lfs
-
-    $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
-
-    [ -n "$EXTENSION" ] && build_extension
-
-    # final cleanup
-    rm -rf $LFS/tmp/*
-    find $LFS/usr/lib $LFS/usr/libexec -name \*.la -delete
-    find $LFS/usr -depth -name $LFS_TGT\* | xargs rm -rf
-    rm -rf $LFS/home/tester
-    sed -i 's/^.*tester.*$//' $LFS/etc/{passwd,group}
-
-    # unmount and detatch image
-    unmount_image
-
-    echo "build successful."
-
-}
-
 
 # ###############
 # Parse arguments
@@ -981,5 +906,72 @@ then
     EXTENSION="$(cd $(dirname $EXTENSION) && pwd)/$(basename $EXTENSION)"
 fi
 
-mainLFSbuild
 
+# ###########
+# Start build
+# ~~~~~~~~~~~
+
+# Perform single operations
+$CHECKDEPS && check_dependencies && exit
+$DOWNLOAD && download_pkgs && exit
+$INIT && download_pkgs && init_image && unmount_image && exit
+$MOUNT && mount_image && exit
+$UNMOUNT && unmount_image && exit
+$CLEAN && clean_image && exit
+[ -n "$INSTALL_TGT" ] && install_image && exit
+
+if [ -n "$STARTPHASE" ]
+then
+    download_pkgs
+    mount_image
+elif $BUILDALL
+then
+    download_pkgs
+    init_image
+else
+    usage
+    exit
+fi
+
+PATH=$LFS/tools/bin:$PATH
+CONFIG_SITE=$LFS/usr/share/config.site
+LC_ALL=POSIX
+export LC_ALL PATH CONFIG_SITE
+
+trap "echo 'build cancelled.' && cd $FULLPATH && unmount_image && exit" SIGINT
+trap "echo 'build failed.' && cd $FULLPATH && unmount_image && exit 1" ERR
+
+build_phase 1
+
+$ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
+
+build_phase 2
+
+$ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
+
+build_phase 3
+
+# phase 3 cleanup
+rm -rf $LFS/usr/share/{info,man,doc}/*
+find $LFS/usr/{lib,libexec} -name \*.la -delete
+rm -rf $LFS/tools
+
+$ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
+
+build_phase 4
+
+$ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
+
+[ -n "$EXTENSION" ] && build_extension
+
+# final cleanup
+rm -rf $LFS/tmp/*
+find $LFS/usr/lib $LFS/usr/libexec -name \*.la -delete
+find $LFS/usr -depth -name $LFS_TGT\* | xargs rm -rf
+rm -rf $LFS/home/tester
+sed -i 's/^.*tester.*$//' $LFS/etc/{passwd,group}
+
+# unmount and detatch image
+unmount_image
+
+echo "build successful."
