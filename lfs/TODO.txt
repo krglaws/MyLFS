@@ -1,0 +1,4 @@
+[ ] Check vim: cannot be reinstalled after installation
+[ ] Check lfsbootscript: Rules file can already exist.
+[ ] Syslinux: Is not coppied on rebuild... ned check of packages copy...
+
