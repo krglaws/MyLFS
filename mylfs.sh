@@ -6,7 +6,7 @@ set -e
 # Functions
 # ~~~~~~~~~
 
-repeat_echo(){
+function repeat_echo {
 	local start=1
 	local end=${1:-80}
 	local str="${2:-=}"
@@ -425,7 +425,7 @@ function build_package {
     local NAME=$1
     local NAME_OVERRIDE=$2
 
-    { $VERBOSE && echo "Building $NAME phase $PHASE section $PHASESECTION..."; } || echo -n "Building $NAME phase $PHASE section $PHASESECTION... "
+    { $VERBOSE && echo "Section $PHASESECTION phase $PHASE: building \"$NAME\" package..."; } || echo -n "Section $PHASESECTION phase $PHASE: building \"$NAME\" package... "
 
     local PKG_NAME=PKG_$([ -n "$NAME_OVERRIDE" ] && echo $NAME_OVERRIDE || echo $NAME | tr a-z A-Z)
     PKG_NAME=$(basename ${!PKG_NAME})

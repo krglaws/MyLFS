@@ -73,4 +73,6 @@ sysvinit
 lfsbootscripts
 linux
 grub
+syslinux
+
 
