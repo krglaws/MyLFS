@@ -268,21 +268,26 @@ function init_image {
 
     # install static files
     echo $LFSHOSTNAME > $LFS/etc/hostname
-    for f in ./static/*
-    do
-        install_static $f
-    done
+    
+#    for f in ./static/*
+#    do
+#        local FILENAME=$1
+#        local FULLPATH="$LFS/$(basename $FILENAME | sed 's/__/\//g')"
+#        mkdir -p $(dirname $FULLPATH)
+#        cp -f $FILENAME $FULLPATH
+#        install_static $f
+#    done
     if [ -n "$KERNELCONFIG" ]
     then
         cp $KERNELCONFIG /boot/config-$KERNELVERS
     fi
 
     # install templates
-    for f in ./templates/*
-    do
-        install_template $f
-    done
-
+#    for f in ./templates/*
+#    do
+#        install_template $f
+#    done
+#
     # make special device files
     mknod -m 600 $LFS/dev/console c 5 1
     mknod -m 666 $LFS/dev/null c 1 3
@@ -497,7 +502,7 @@ function build_phase {
     then
         if [ $PHASE -lt $STARTPHASE ] || { $FOUNDSTARTPHASE && $ONEOFF; }
         then
-            echo "Skipping phase $PHASE in $PHASESECTION section"
+            echo "Skipping phase ${_PHASES[$PHASE]} in $PHASESECTION section"
             return 0
         else
             FOUNDSTARTPHASE=true
@@ -506,19 +511,19 @@ function build_phase {
 
     if [ $PHASE -ne 1 -a ! -f $LFS/root/.$PHASESECTION/.phase$((PHASE-1)) ]
     then
-        echo "ERROR: phases preceeding phase $PHASE have not been built"
+        echo "ERROR: phases preceeding phase ${_PHASES[$PHASE-1]} have not been built"
         return 1
     fi
-    SSTR="Section $PHASESECTION. Phase $PHASE"
+    SSTR="Section $PHASESECTION. Phase ${_PHASES[$PHASE-1]}"
     HOUT="# "
     HOUT+=$(repeat_echo ${#SSTR} '#';echo)
     HOUT+="\n# ${SSTR}\n"
     HOUT+="# $(repeat_echo ${#SSTR} '~';echo)"
     echo -e $HOUT
 
-    source ./$PHASESECTION/config.sh
+    source ./$PHASESECTION/phases.config.sh
 
-    local PHASE_DIR=./$PHASESECTION/phase$PHASE 
+    local PHASE_DIR=./$PHASESECTION/${_PHASES[$PHASE-1]}
 
     # Phase 5 == a build extension
 #    [ $PHASE -eq 5 ] && PHASE_DIR=$EXTENSION
@@ -766,7 +771,8 @@ function mainLFSbuild {
         usage
         exit
     fi
-    SECTION= $2 || lfs
+    SECTION=lfs
+    if ! [ -z $2 ]; then SECTION=$2; fi
     PATH=$LFS/tools/bin:$PATH
     CONFIG_SITE=$LFS/usr/share/config.site
     LC_ALL=POSIX
@@ -774,30 +780,30 @@ function mainLFSbuild {
 
     trap "echo 'build cancelled.' && cd $FULLPATH && unmount_image && exit" SIGINT
     trap "echo 'build failed.' && cd $FULLPATH && unmount_image && exit 1" ERR
+    
+    # Loading config from section
+    source ./$SECTION/config.sh
+    # Defining Phases
+    if [ -z $_PHASES ]; then
+        if [ -z $_PHASESCOUNT ]; then echo -e "Please provide at least one of the config sections in ./$SECTION/config.sh file. Neither of \$_PHASESCOUNT or \$_PHASES are defined"; exit; fi
+        _PHASES=()
+        for i in $(seq 1 $_PHASESCOUNT); do
+            _PHASES+=("phase$i")
+        done
+    else    
+        if ! [ -z $_PHASESCOUNT ]; then echo -n "\$_PHASESCOUNT is defined with \$_PHASES. \$_PHASECOUNT will be skipped\n"; fi
+    fi
+    #Execute phases
+#    echo -n "${#_PHASES[@]}  ${_PHASES[@]}"
+    for ph_index in $(seq 1 ${#_PHASES[@]}); do
+        type run_before_${_PHASES[$ph_index-1]} &>/dev/null && run_before_${_PHASES[$ph_index-1]}
+        build_phase $ph_index $SECTION
+        type run_after_${_PHASES[$ph_index-1]} &>/dev/null && run_after_${_PHASES[$ph_index-1]}
+        $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
+    done
 
-    build_phase 1 $SECTION
-
-    $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
-
-    build_phase 2 $SECTION
-
-    $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
-
-    build_phase 3 $SECTION
-
-    # phase 3 cleanup
-    rm -rf $LFS/usr/share/{info,man,doc}/*
-    find $LFS/usr/{lib,libexec} -name \*.la -delete
-    rm -rf $LFS/tools
-
-    $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
-
-    build_phase 4 $SECTION
-
-    $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
-
-    [ -n "$EXTENSION" ] && build_extension
-
+#    [ -n "$EXTENSION" ] && build_extension
+#
     # final cleanup
     rm -rf $LFS/tmp/*
     find $LFS/usr/lib $LFS/usr/libexec -name \*.la -delete
