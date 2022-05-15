@@ -43,6 +43,9 @@ on the device you specify.
 
         -b|--build-all      Run the entire script from beginning to end.
 
+        -s|--build-iso      Run script to generate iso file. '.img' file must be 
+                            generated before executing.
+
         -x|--extend         Pass in the path to a custom build extension. See the
                             'example_extension' directory for reference.
 
@@ -51,6 +54,9 @@ on the device you specify.
 
         -i|--init           Create the .img file, partition it, setup basic directory
                             structure, then exit.
+
+        -t|--phase-id       Specify which portion of script you need to execute. If 
+                            not specified, will run 'lfs' scripts.
 
         -p|--start-phase
         -a|--start-package  Select a phase and optionally a package
