@@ -228,7 +228,7 @@ function init_image {
 
     sleep 1 # give the kernel another sec
 
-    LFSPARTUUID=$(lsblk -o PARTUUID $LOOP | tail -1) # needed for grub.cfg
+    LFSPARTUUID=$(lsblk -o PARTUUID $LOOP_P1 | tail -1) # needed for grub.cfg
 
     # setup root partition
     mkfs -t $LFS_FS $LOOP_P1 &> /dev/null
@@ -593,43 +593,110 @@ function build_extension {
         echo "ERROR: extension '$EXTENSION' is missing a 'build_order.txt' file."
         return 1
     fi
-
-    mkdir -p $EXTENSION/{logs,pkgs}
-
-    # read in extension config.sh if present
-    [ -f "$EXTENSION/config.sh" ] && source "$EXTENSION/config.sh"
-
-    # read pkgs.sh
+#
+#    mkdir -p $EXTENSION/{logs,pkgs}
+#
+#    # read in extension config.sh if present
+#    [ -f "$EXTENSION/config.sh" ] && source "$EXTENSION/config.sh"
+#
+#    # read pkgs.sh
     source "$EXTENSION/pkgs.sh"
-
-    # download extension packages
-    download_pkgs $EXTENSION
+#
+#    # download extension packages
+#    download_pkgs $EXTENSION
+#
+#    
+#
+#    # copy packages onto LFS image
+#    cp -f $EXTENSION/pkgs/* $LFS/sources/
+#
+#    # install static files if present
+#    if [ -d "$EXTENSION/static" ]
+#    then
+#        for f in $EXTENSION/static/*
+#        do
+#            install_static $f
+#        done
+#    fi
+#
+#    # install template files if present
+#    if [ -d "$EXTENSION/templates" ]
+#    then
+#        for f in $EXTENSION/templates/*
+#        do
+#            install_template $f
+#        done
+#    fi
+#
+#    # build extension
+#    build_phase 5 || return 1
+    $CHECKDEPS && check_dependencies && exit
+    $DOWNLOAD && download_pkgs && exit
+    $INIT && download_pkgs && init_image && unmount_image && exit
+    $MOUNT && mount_image && exit
+    $UNMOUNT && unmount_image && exit
+    $CLEAN && clean_image && exit
+    [ -n "$INSTALL_TGT" ] && install_image && exit
 
     $VERBOSE && set -x
-
-    # copy packages onto LFS image
-    cp -f $EXTENSION/pkgs/* $LFS/sources/
-
-    # install static files if present
-    if [ -d "$EXTENSION/static" ]
+    if [ -n "$STARTPHASE" ]
     then
-        for f in $EXTENSION/static/*
-        do
-            install_static $f
-        done
-    fi
-
-    # install template files if present
-    if [ -d "$EXTENSION/templates" ]
+        download_pkgs
+        mount_image
+    elif $BUILDALL
     then
-        for f in $EXTENSION/templates/*
-        do
-            install_template $f
-        done
+        download_pkgs
+        init_image
+    else
+        usage
+        exit
     fi
+    SECTION=lfs
+    if ! [ -z $2 ]; then SECTION=$2; fi
+    PATH=$LFS/tools/bin:$PATH
+    CONFIG_SITE=$LFS/usr/share/config.site
+    LC_ALL=POSIX
+    export LC_ALL PATH CONFIG_SITE
 
-    # build extension
-    build_phase 5 || return 1
+    trap "echo 'build cancelled.' && cd $FULLPATH && unmount_image && exit" SIGINT
+    trap "echo 'build failed.' && cd $FULLPATH && unmount_image && exit 1" ERR
+    
+    # Loading config from section
+    source ./$SECTION/config.sh
+    # Defining Phases
+    if [ -z $_PHASES ]; then
+        if [ -z $_PHASESCOUNT ]; then echo -e "Please provide at least one of the config sections in ./$SECTION/config.sh file. Neither of \$_PHASESCOUNT or \$_PHASES are defined"; exit; fi
+        _PHASES=()
+        for i in $(seq 1 $_PHASESCOUNT); do
+            _PHASES+=("phase$i")
+        done
+    else    
+        if ! [ -z $_PHASESCOUNT ]; then echo -n "\$_PHASESCOUNT is defined with \$_PHASES. \$_PHASECOUNT will be skipped\n"; fi
+    fi
+    #Execute phases
+#    echo -n "${#_PHASES[@]}  ${_PHASES[@]}"
+    for ph_index in $(seq 1 ${#_PHASES[@]}); do
+        type run_before_${_PHASES[$ph_index-1]} &>/dev/null && run_before_${_PHASES[$ph_index-1]}
+        build_phase $ph_index $SECTION
+        type run_after_${_PHASES[$ph_index-1]} &>/dev/null && run_after_${_PHASES[$ph_index-1]}
+        $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
+    done
+
+#    [ -n "$EXTENSION" ] && build_extension
+#
+    # final cleanup
+#    rm -rf $LFS/tmp/*
+#    find $LFS/usr/lib $LFS/usr/libexec -name \*.la -delete
+#    find $LFS/usr -depth -name $LFS_TGT\* | xargs rm -rf
+#    rm -rf $LFS/home/tester
+#    sed -i 's/^.*tester.*$//' $LFS/etc/{passwd,group}
+
+    # unmount and detatch image
+    unmount_image
+
+    echo "Extension build successful."
+
+
 }
 
 function install_image {
@@ -757,7 +824,8 @@ function mainLFSbuild {
     # Start build
     # ~~~~~~~~~~~
 
-    # Perform single operations
+    # Perform single operations    
+
     $CHECKDEPS && check_dependencies && exit
     $DOWNLOAD && download_pkgs && exit
     $INIT && download_pkgs && init_image && unmount_image && exit
@@ -841,13 +909,15 @@ cd $(dirname $0)
 source ./config.sh
 
 # import package list
-source ./pkgs.sh
+source ./lfs/pkgs.sh
 
 
 VERBOSE=false
 CHECKDEPS=false
 BUILDALL=false
 BUILDISO=false
+BUILDQEMU=()
+EXTENSIONS=()
 DOWNLOAD=false
 INIT=false
 ONEOFF=false
@@ -881,7 +951,7 @@ while [ $# -gt 0 ]; do
       shift
       ;;
     -x|--extend)
-      EXTENSION="$2"
+      EXTENSION+=("$2")
       shift
       shift
       ;;
@@ -891,12 +961,6 @@ while [ $# -gt 0 ]; do
       ;;
     -i|--init)
       INIT=true
-      shift
-      ;;
-    -t|--phase-id)
-      STARTSECTION="$2"
-      [ -z "$STARTSECTION" ] && echo "ERROR: $1 missing argument." && exit 1
-      shift
       shift
       ;;
     -p|--start-phase)
@@ -973,10 +1037,6 @@ then
     then
         echo "ERROR: -p|--start-phase must specify a number between 1 and 5."
         exit 1
-    elif [ "$STARTPHASE" -eq 5 ] && [ -z "$EXTENSION" ]
-    then
-        echo "ERROR: phase 5 only exists if an -x|--extend has been specified."
-        exit 1
     elif [ ! -f $LFS_IMG ]
     then
         echo "ERROR: $LFS_IMG not found - cannot start from phase $STARTPHASE."
@@ -994,23 +1054,28 @@ then
     exit 1
 fi
 
-if [ -n "$EXTENSION" ]
+if ! [ ${#EXTENSIONS[@]} ]
 then
     if ! $BUILDALL && [ -z "$STARTPHASE" ]
     then
         echo "ERROR: -x|--extend has no effect without either -b|--build-all or -p|--start-phase set."
         exit 1
-    elif $ONEOFF && [ "$STARTPHASE" -ne 5 ]
+    elif $ONEOFF
     then
-        echo "ERROR: -x|--extend has no effect if -o|--one-off is set and -p|--start-phase != 5."
+        echo "ERROR: -x|--extend has no effect if -o|--one-off is set."
         exit 1
-    elif [ ! -d "$EXTENSION" ]
-    then
-        echo "ERROR: '$EXTENSION' is not a directory or does not exist."
+    else
+        for i in $EXTENSIONS; do
+            if [ ! -d "$i" ]
+            then
+                echo "ERROR: '$i' is not a directory or does not exist."
+                exit 1
+            fi
+        done
     fi
 
-    # get full path to extension
-    EXTENSION="$(cd $(dirname $EXTENSION) && pwd)/$(basename $EXTENSION)"
+    # get full path to every extension
+#    EXTENSION="$(cd $(dirname $EXTENSION) && pwd)/$(basename $EXTENSION)"
 fi
 
 if $BUILDISO
@@ -1018,5 +1083,11 @@ then
     startISO
 else
     mainLFSbuild $STARTSECTION
+    if ! [ -z ${#EXTENSIONS[@]} ]; then
+        for i in $EXTENSIONS; do
+            EXTENSION="$(cd $(dirname $i) && pwd)/$(basename $i)"
+            build_extension
+        done 
+    fi
 fi
 
