@@ -30,8 +30,10 @@ else
     config_off CONFIG_UEVENT_HELPER
     config_on  CONFIG_DEVTMPFS
     config_on  CONFIG_MODULES
+    #... more need to add
 fi
 
+# This is broken for now
 make
 
 make modules_install

@@ -1,5 +1,9 @@
 *.img
 *.swp
+*.qcow2
+*.vdi
 pkgs/
 logs/
 mnt/
+version-check.sh
+

@@ -536,8 +536,9 @@ function build_phase {
 
     # make sure ./logs/ and ./logs/$PHASESECTION dir exists
     mkdir -p $LOG_DIR/$PHASESECTION
-
-    while read pkg
+    
+    # This will be more stable (rechecks if it read correctly)
+    while IFS='' read -r pkg || [ "$pkg" ]
     do
         if $FOUNDSTARTPKG && $ONEOFF
         then
