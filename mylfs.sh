@@ -929,6 +929,7 @@ INIT=false
 ONEOFF=false
 FOUNDSTARTPKG=false
 FOUNDSTARTPHASE=false
+FOUNDSTARTSECTION=true
 MOUNT=false
 UNMOUNT=false
 CLEAN=false
@@ -971,6 +972,7 @@ while [ $# -gt 0 ]; do
       ;;
     -t|--start-section)
       STARTSECTION="$2"
+      FOUNDEDSTARTSECTION=false
       [ -z "$STARTSECTION" ] && echo "ERROR: $1 missing argument." && exit 1
       [[ $STARTSECTION = -* ]] && echo "ERROR: $1 missing argument." && exit 1
       shift
@@ -1059,7 +1061,11 @@ fi
 
 if [ -n "$STARTPHASE" ]
 then
-    if [ ! -f $LFS_IMG ]
+    if ! [ "$STARTPHASE" =~ ^[1-9][0-9]*$ ]
+    then
+        echo "-p|--start-phase must be a number from 1 to the number of phases inside of specified section"
+        exit 1
+    elif [ ! -f $LFS_IMG ]
     then
         echo "ERROR: $LFS_IMG not found - cannot start from phase $STARTPHASE."
         exit 1
@@ -1104,12 +1110,15 @@ if $BUILDISO
 then
     startISO
 else
-    if ! [ -z ${#EXTENSIONS[@]} ]; then
-        for i in $EXTENSIONS; do
+    for i in $EXTENSIONS; do
+        if [ $STARTSECTION == $(basename $i) ]; then FOUNDEDSTARTSECTION=true; fi
+        if $FOUNDEDSTART; then
             EXTENSION="$(cd $(dirname $i) && pwd)/$(basename $i)"
             EXTENSIONNAME="$(basename $i)"
             build_extension
-        done 
-    fi
+        else
+            echo "Skipping $(basename $i) section..."
+        fi
+    done
 fi
 
