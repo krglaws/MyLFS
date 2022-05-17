@@ -164,10 +164,10 @@ function check_dependencies {
 
 function copy_sources {
     local PKG_FOLD=$1
-    shift
-    for i in $@
-    do
-        local PKG_NAME=PKG_$([ -n "$NAME_OVERRIDE" ] && echo $NAME_OVERRIDE || echo $i | tr a-z A-Z)
+    for i in ${!PACKS[@]}
+    do 
+        local NAME_OVERRIDE="$(echo ${PACKS[$i]} | cut -d" " -f2)"
+        local PKG_NAME=PKG_$([ -n "$NAME_OVERRIDE" ] && echo $NAME_OVERRIDE | tr a-z A-Z)
         PKG_NAME=$(basename ${!PKG_NAME})
         local PKG_PATH=$PKG_FOLD/pkgs/$PKG_NAME
         cp -f $PKG_PATH $LFS/sources/
@@ -530,11 +530,20 @@ function build_phase {
     # make sure ./logs/ and ./logs/$PHASESECTION dir exists
     mkdir -p $LOG_DIR/$PHASESECTION
     
-    # This is more stable (Read and go)
-    PACKS=($(cat "$PHASE_DIR/build_order.txt"))
+    # This is more stable (Read before and go)
+    PACKS=()
+    while IFS='' read -r pkgn || [ "$pkgn" ]
+    do
+        if [ -z "$pkgn" -o "${pkgn:0:1}" == "#" ]
+        then
+            # skip comments
+            continue
+        fi
+        PACKS+=("$pkgn")
+    done < "$PHASE_DIR/build_order.txt" 
 
     #Prepare packs to work
-    copy_sources $PHASESECTION $PACKS
+    copy_sources $PHASESECTION
 
     for pkg in ${PACKS[@]}
     do
@@ -1084,6 +1093,7 @@ $INIT && init_image && unmount_image && exit
 
 if ! [ ${#BUILDQEMU[@]} ]
 then
+    command -v qemu-img >/dev/null || { echo "qemu-img command not found."; exit 1; } 
     for i in ${BUILDQEMU[@]}
     do
         echo "Converting .img to .$i"
