@@ -163,14 +163,14 @@ function check_dependencies {
 }
 
 function copy_sources {
-    local PKG_FOLD = $1
+    local PKG_FOLD=$1
     shift
     for i in $@
     do
-        local PKG_NAME=PKG_$([ -n "$NAME_OVERRIDE" ] && echo $NAME_OVERRIDE || echo $NAME | tr a-z A-Z)
+        local PKG_NAME=PKG_$([ -n "$NAME_OVERRIDE" ] && echo $NAME_OVERRIDE || echo $i | tr a-z A-Z)
         PKG_NAME=$(basename ${!PKG_NAME})
-        local PKG_PATH=$PKG_FOLD/$PKG_NAME
-        cp -f PKG_PATH $LFS/sources/
+        local PKG_PATH=$PKG_FOLD/pkgs/$PKG_NAME
+        cp -f $PKG_PATH $LFS/sources/
     done
 }
 
@@ -889,7 +889,7 @@ INIT=false
 ONEOFF=false
 FOUNDSTARTPKG=false
 FOUNDSTARTPHASE=false
-FOUNDSTARTSECTION=true
+FOUNDEDSTARTSECTION=true
 MOUNT=false
 UNMOUNT=false
 CLEAN=false
@@ -1070,9 +1070,7 @@ then
             fi
         done
     fi
-
-    # get full path to every extension
-#    EXTENSION="$(cd $(dirname $EXTENSION) && pwd)/$(basename $EXTENSION)"
+    
 fi
 
 
@@ -1083,7 +1081,8 @@ $CLEAN && clean_image && exit
 $INIT && init_image && unmount_image && exit
 [ -n "$INSTALL_TGT" ] && install_image && exit
 
-if [ ${#BUILDQEMU[@]} ]
+
+if ! [ ${#BUILDQEMU[@]} ]
 then
     for i in ${BUILDQEMU[@]}
     do
@@ -1096,7 +1095,7 @@ then
 else
     for i in $EXTENSIONS; do
         if [ $STARTSECTION == $(basename $i) ]; then FOUNDEDSTARTSECTION=true; fi
-        if $FOUNDEDSTART; then
+        if [ $FOUNDEDSTARTSECTION ]; then
             EXTENSION="$(cd $(dirname $i) && pwd)/$(basename $i)"
             EXTENSIONNAME="$(basename $i)"
             build_extension
