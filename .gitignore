@@ -1,9 +1,14 @@
+# Skip Image files
 *.img
 *.swp
 *.qcow2
 *.vdi
+
+# Skip temp only directories
 pkgs/
 logs/
 mnt/
+
+#If someone add this file - dont include it into git
 version-check.sh
 
