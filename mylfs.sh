@@ -356,7 +356,7 @@ function download_pkgs {
         trap "cleanup_cancelled_download $url && exit" ERR SIGINT
 
         $VERBOSE && echo -n "Downloading '$url'... "
-        reecho "Downloading packages... ($i/${#PACKAGE_URLS[@]})"
+        reecho "Downloading packages for $(basename $1)... ($(($i+1))/${#PACKAGE_URLS[@]})"
         if ! echo $ALREADY_DOWNLOADED | grep $(basename $url) > /dev/null
         then
             if ! curl --location --silent --output $PACKAGE_DIR/$(basename $url) $url
@@ -372,7 +372,7 @@ function download_pkgs {
         trap - ERR SIGINT
     done
 
-    echo "done."
+    echo " done."
 }
 
 function mount_image {
@@ -668,7 +668,7 @@ function build_extension {
     trap "echo 'build failed.' && cd $FULLPATH && unmount_image && exit 1" ERR
     
     # Loading config from section
-    source ./$SECTION/config.sh
+    source $EXTENSION/config.sh
     # Defining Phases
     if [ -z $_PHASES ]; then
         if [ -z $_PHASESCOUNT ]; then echo -e "Please provide at least one of the config sections in ./$SECTION/config.sh file. Neither of \$_PHASESCOUNT or \$_PHASES are defined"; exit; fi
@@ -683,7 +683,7 @@ function build_extension {
 #    echo -n "${#_PHASES[@]}  ${_PHASES[@]}"
     for ph_index in $(seq 1 ${#_PHASES[@]}); do
         type run_before_${_PHASES[$ph_index-1]} &>/dev/null && run_before_${_PHASES[$ph_index-1]}
-        build_phase $ph_index $SECTION
+        build_phase $ph_index $EXTENSIONNAME
         type run_after_${_PHASES[$ph_index-1]} &>/dev/null && run_after_${_PHASES[$ph_index-1]}
         $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
     done
@@ -700,7 +700,7 @@ function build_extension {
     # unmount and detatch image
     unmount_image
 
-    echo "Extension build successful."
+    echo "Extension \"$EXTENSIONNAME\" build successful."
 
 
 }
@@ -969,15 +969,24 @@ while [ $# -gt 0 ]; do
       INIT=true
       shift
       ;;
+    -t|--start-section)
+      STARTSECTION="$2"
+      [ -z "$STARTSECTION" ] && echo "ERROR: $1 missing argument." && exit 1
+      [[ $STARTSECTION = -* ]] && echo "ERROR: $1 missing argument." && exit 1
+      shift
+      shift
+      ;;
     -p|--start-phase)
       STARTPHASE="$2"
       [ -z "$STARTPHASE" ] && echo "ERROR: $1 missing argument." && exit 1
+      [[ $STARTPHASE = -* ]] && echo "ERROR: $1 missing argument." && exit 1
       shift
       shift
       ;;
     -a|--start-package)
       STARTPKG="$2"
       [ -z "$STARTPKG" ] && echo "ERROR: $1 missing argument." && exit 1
+      [[ $STARTPKG = -* ]] && echo "ERROR: $1 missing argument." && exit 1
       shift
       shift
       ;;
@@ -988,6 +997,7 @@ while [ $# -gt 0 ]; do
     -k|--kernel-config)
       KERNELCONFIG="$2"
       [ -z "$KERNELCONFIG" ] && echo "ERROR: $1 missing argument." && exit 1
+      [[ $KERNELCONFIG = -* ]] && echo "ERROR: $1 missing argument." && exit 1
       shift
       shift
       ;;
@@ -1002,6 +1012,7 @@ while [ $# -gt 0 ]; do
     -n|--install)
       INSTALL_TGT="$2"
       [ -z "$INSTALL_TGT" ] && echo "ERROR: $1 missing argument." && exit 1
+      [[ $INSTALL_TGT = -* ]] && echo "ERROR: $1 missing argument." && exit 1
       shift
       shift
       ;;
@@ -1037,13 +1048,18 @@ do
     fi
 done
 
+if [ -n "$STARTSECTION" ]
+then
+    if (! [ $STARTSECTION == lfs ]) && [ ! -f $LFS_IMG ]
+    then
+        echo "ERROR: $LFS_IMG not found - cannot start from phase $STARTPHASE."
+        exit 1
+    fi
+fi
+
 if [ -n "$STARTPHASE" ]
 then
-    if ! [[ "$STARTPHASE" =~ ^[1-5]$ ]]
-    then
-        echo "ERROR: -p|--start-phase must specify a number between 1 and 5."
-        exit 1
-    elif [ ! -f $LFS_IMG ]
+    if [ ! -f $LFS_IMG ]
     then
         echo "ERROR: $LFS_IMG not found - cannot start from phase $STARTPHASE."
         exit 1
@@ -1060,7 +1076,7 @@ then
     exit 1
 fi
 
-if ! [ ${#EXTENSIONS[@]} ]
+if [ ${#EXTENSIONS[@]} ]
 then
     if ! $BUILDALL && [ -z "$STARTPHASE" ]
     then
@@ -1091,6 +1107,7 @@ else
     if ! [ -z ${#EXTENSIONS[@]} ]; then
         for i in $EXTENSIONS; do
             EXTENSION="$(cd $(dirname $i) && pwd)/$(basename $i)"
+            EXTENSIONNAME="$(basename $i)"
             build_extension
         done 
     fi

@@ -12,21 +12,21 @@ _PHASESCOUNT=4
 #
 function run_before_phase1 {
     #Copy Static to folder
-    local FILES=$(find ./$SECTION/static | grep ./$SECTION/static/ | sed "s/\.\/$SECTION\/static\///g");
+    local FILES=$(find ./$EXTENSIONNAME/static | grep ./$EXTENSIONNAME/static/ | sed "s/\.\/$EXTENSIONNAME\/static\///g");
     for i in ${FILES[@]}; do
         local FULLPATH="$LFS/$i";
         mkdir -p $(dirname $FULLPATH) 
         if ! [ -d $FULLPATH ]; then      
-            cp -f ./$SECTION/static/$i $FULLPATH
+            cp -f ./$EXTENSIONNAME/static/$i $FULLPATH
         fi
     done
     #Copy Templates Files
-    local FILES=$(find ./$SECTION/templates | grep ./$SECTION/templates/ | sed "s/\.\/$SECTION\/templates\///g");
+    local FILES=$(find ./$EXTENSIONNAME/templates | grep ./$EXTENSIONNAME/templates/ | sed "s/\.\/$EXTENSIONNAME\/templates\///g");
     for i in ${FILES[@]}; do
         local FULLPATH="$LFS/$i";
         mkdir -p $(dirname $FULLPATH) 
         if ! [ -d $FULLPATH ]; then      
-            cat ./$SECTION/templates/$i | envsubst > $FULLPATH
+            cat ./$EXTENSIONNAME/templates/$i | envsubst > $FULLPATH
         fi
     done
 }
