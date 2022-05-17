@@ -14,6 +14,10 @@ function repeat_echo {
 	for i in $range ; do echo -n "${str}"; done
 }
 
+function reecho {
+    echo -ne "\r$1"
+}
+
 function usage {
 cat <<EOF
 Welcome to MyLFS.
@@ -158,19 +162,20 @@ function check_dependencies {
     rm -f dummy.c dummy
 }
 
-function install_static {
-    local FILENAME=$1
-    local FULLPATH="$LFS/$(basename $FILENAME | sed 's/__/\//g')"
-    mkdir -p $(dirname $FULLPATH)
-    cp -f $FILENAME $FULLPATH
-}
-
-function install_template {
-    local FILENAME=$1
-    local FULLPATH="$LFS/$(basename $FILENAME | sed 's/__/\//g')"
-    mkdir -p $(dirname $FULLPATH)
-    cat $FILENAME | envsubst > $FULLPATH
-}
+#Not needed anymore
+# function install_static {
+#     local FILENAME=$1
+#     local FULLPATH="$LFS/$(basename $FILENAME | sed 's/__/\//g')"
+#     mkdir -p $(dirname $FULLPATH)
+#     cp -f $FILENAME $FULLPATH
+# }
+#Not needed anymore
+# function install_template {
+#     local FILENAME=$1
+#     local FULLPATH="$LFS/$(basename $FILENAME | sed 's/__/\//g')"
+#     mkdir -p $(dirname $FULLPATH)
+#     cat $FILENAME | envsubst > $FULLPATH
+# }
 
 function init_image {
     if [ $UID -ne 0 ]
@@ -340,16 +345,18 @@ function download_pkgs {
 
     [ -f "$PACKAGE_LIST" ] || { echo "ERROR: $PACKAGE_LIST is missing." && exit 1; }
 
-    local PACKAGE_URLS=$(cat $PACKAGE_LIST | grep "^[^#]" | cut -d"=" -f2)
+    local PACKAGE_URLS=($(cat $PACKAGE_LIST | grep "^[^#]" | cut -d"=" -f2))
     local ALREADY_DOWNLOADED=$(ls $PACKAGE_DIR)
 
-    { $VERBOSE && echo "Downloading packages... "; } || echo -n "Downloading packages... "
-
-    for url in $PACKAGE_URLS
+    { $VERBOSE && echo "Downloading packages... "; } #|| echo -n "Downloading packages... "
+    # echo ${#PACKAGE_URLS[@]}
+    for i in ${!PACKAGE_URLS[@]}
     do
+        url="${PACKAGE_URLS[$i]}"
         trap "cleanup_cancelled_download $url && exit" ERR SIGINT
 
         $VERBOSE && echo -n "Downloading '$url'... "
+        reecho "Downloading packages... ($i/${#PACKAGE_URLS[@]})"
         if ! echo $ALREADY_DOWNLOADED | grep $(basename $url) > /dev/null
         then
             if ! curl --location --silent --output $PACKAGE_DIR/$(basename $url) $url
@@ -515,7 +522,7 @@ function build_phase {
         fi
     fi
 
-    if [ $PHASE -ne 1 -a ! -f $LFS/root/.$PHASESECTION/.phase$((PHASE-1)) ]
+    if [ $PHASE -ne 1 -a ! -f $LFS/root/.$PHASESECTION/.${_PHASES[$PHASE-2]} ]
     then
         echo "ERROR: phases preceeding phase ${_PHASES[$PHASE-1]} have not been built"
         return 1
@@ -588,10 +595,6 @@ function build_extension {
     then
         echo "ERROR: extension '$EXTENSION' is missing a 'pkgs.sh' file."
         return 1
-    elif [ ! -f "$EXTENSION/build_order.txt" ]
-    then
-        echo "ERROR: extension '$EXTENSION' is missing a 'build_order.txt' file."
-        return 1
     fi
 #
 #    mkdir -p $EXTENSION/{logs,pkgs}
@@ -630,9 +633,10 @@ function build_extension {
 #
 #    # build extension
 #    build_phase 5 || return 1
+
     $CHECKDEPS && check_dependencies && exit
-    $DOWNLOAD && download_pkgs && exit
-    $INIT && download_pkgs && init_image && unmount_image && exit
+    $DOWNLOAD && download_pkgs $EXTENSION && exit
+    $INIT && download_pkgs $EXTENSION && init_image && unmount_image && exit
     $MOUNT && mount_image && exit
     $UNMOUNT && unmount_image && exit
     $CLEAN && clean_image && exit
@@ -641,18 +645,20 @@ function build_extension {
     $VERBOSE && set -x
     if [ -n "$STARTPHASE" ]
     then
-        download_pkgs
+        download_pkgs $EXTENSION
         mount_image
     elif $BUILDALL
     then
-        download_pkgs
-        init_image
+        download_pkgs $EXTENSION
+        if [ $EXTENSION==lfs ]; then
+            init_image
+        else
+            mount_image
+        fi
     else
         usage
         exit
     fi
-    SECTION=lfs
-    if ! [ -z $2 ]; then SECTION=$2; fi
     PATH=$LFS/tools/bin:$PATH
     CONFIG_SITE=$LFS/usr/share/config.site
     LC_ALL=POSIX
@@ -869,7 +875,7 @@ function mainLFSbuild {
         if ! [ -z $_PHASESCOUNT ]; then echo -n "\$_PHASESCOUNT is defined with \$_PHASES. \$_PHASECOUNT will be skipped\n"; fi
     fi
     #Execute phases
-#    echo -n "${#_PHASES[@]}  ${_PHASES[@]}"
+    # echo -n "${#_PHASES[@]}  ${_PHASES[@]}"
     for ph_index in $(seq 1 ${#_PHASES[@]}); do
         type run_before_${_PHASES[$ph_index-1]} &>/dev/null && run_before_${_PHASES[$ph_index-1]}
         build_phase $ph_index $SECTION
@@ -877,8 +883,8 @@ function mainLFSbuild {
         $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
     done
 
-#    [ -n "$EXTENSION" ] && build_extension
-#
+    # [ -n "$EXTENSION" ] && build_extension
+    #
     # final cleanup
     rm -rf $LFS/tmp/*
     find $LFS/usr/lib $LFS/usr/libexec -name \*.la -delete
@@ -909,7 +915,7 @@ cd $(dirname $0)
 source ./config.sh
 
 # import package list
-source ./lfs/pkgs.sh
+# source ./lfs/pkgs.sh
 
 
 VERBOSE=false
@@ -917,7 +923,7 @@ CHECKDEPS=false
 BUILDALL=false
 BUILDISO=false
 BUILDQEMU=()
-EXTENSIONS=()
+EXTENSIONS=(lfs)
 DOWNLOAD=false
 INIT=false
 ONEOFF=false
@@ -1082,7 +1088,6 @@ if $BUILDISO
 then
     startISO
 else
-    mainLFSbuild $STARTSECTION
     if ! [ -z ${#EXTENSIONS[@]} ]; then
         for i in $EXTENSIONS; do
             EXTENSION="$(cd $(dirname $i) && pwd)/$(basename $i)"
