@@ -208,13 +208,13 @@ function init_image {
     # reattach loop device to re-read partition table
     losetup -d $LOOP
 
-    sleep 1 # give the kernel a sec
+    sync
 
     losetup -P $LOOP $LFS_IMG
 
-    sleep 1 # give the kernel another sec
+    sync
 
-    LFSPARTUUID=$(lsblk -o PARTUUID $LOOP | tail -1) # needed for grub.cfg
+    export LFSPARTUUID=$(lsblk -o PARTUUID $LOOP | tail -1) # needed for grub.cfg
 
     # setup root partition
     mkfs -t $LFS_FS $LOOP_P1 &> /dev/null
@@ -373,7 +373,8 @@ function mount_image {
 
     losetup -P $LOOP $LFS_IMG
 
-    sleep 1
+    sync
+
     mount $LOOP_P1 $LFS
 
     # mount stuff from the host onto the target disk
