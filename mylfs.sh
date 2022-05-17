@@ -448,10 +448,8 @@ function build_package {
     local PKG_NAME=PKG_$([ -n "$NAME_OVERRIDE" ] && echo $NAME_OVERRIDE || echo $NAME | tr a-z A-Z)
     PKG_NAME=$(basename ${!PKG_NAME})
 
-    local LOG_FILE=$([ $PHASE -eq 5 ] && echo "$EXTENSION/logs/${NAME}.log" || echo "$LOG_DIR/${PHASESECTION}/${NAME}_phase${PHASE}.log")
-    local SCRIPT_PATH=$([ $PHASE -eq 5 ] && echo $EXTENSION/${NAME}.sh || echo ./$PHASESECTION/phase${PHASE}/${NAME}.sh)
-
-    if ! [ -d $LOG_DIR/$PHASESECTION ]; then mkdir -p $LOG_DIR/$PHASESECTION; fi
+    local LOG_FILE=$(echo "$EXTENSION/logs/${NAME}.log")
+    local SCRIPT_PATH=$(echo ./$PHASESECTION/phase${PHASE}/${NAME}.sh)
 
     local BUILD_INSTR="
         set -ex
@@ -596,43 +594,11 @@ function build_extension {
         echo "ERROR: extension '$EXTENSION' is missing a 'pkgs.sh' file."
         return 1
     fi
-#
-#    mkdir -p $EXTENSION/{logs,pkgs}
-#
-#    # read in extension config.sh if present
-#    [ -f "$EXTENSION/config.sh" ] && source "$EXTENSION/config.sh"
-#
+# Create Logs and packages
+   mkdir -p $EXTENSION/{logs,pkgs}
+
 #    # read pkgs.sh
     source "$EXTENSION/pkgs.sh"
-#
-#    # download extension packages
-#    download_pkgs $EXTENSION
-#
-#    
-#
-#    # copy packages onto LFS image
-#    cp -f $EXTENSION/pkgs/* $LFS/sources/
-#
-#    # install static files if present
-#    if [ -d "$EXTENSION/static" ]
-#    then
-#        for f in $EXTENSION/static/*
-#        do
-#            install_static $f
-#        done
-#    fi
-#
-#    # install template files if present
-#    if [ -d "$EXTENSION/templates" ]
-#    then
-#        for f in $EXTENSION/templates/*
-#        do
-#            install_template $f
-#        done
-#    fi
-#
-#    # build extension
-#    build_phase 5 || return 1
 
     $CHECKDEPS && check_dependencies && exit
     $DOWNLOAD && download_pkgs $EXTENSION && exit
@@ -671,7 +637,7 @@ function build_extension {
     source $EXTENSION/config.sh
     # Defining Phases
     if [ -z $_PHASES ]; then
-        if [ -z $_PHASESCOUNT ]; then echo -e "Please provide at least one of the config sections in ./$SECTION/config.sh file. Neither of \$_PHASESCOUNT or \$_PHASES are defined"; exit; fi
+        if [ -z $_PHASESCOUNT ]; then echo -e "Please provide at least one of the config sections in ./$EXTENSION/config.sh file. Neither of \$_PHASESCOUNT or \$_PHASES are defined"; exit; fi
         _PHASES=()
         for i in $(seq 1 $_PHASESCOUNT); do
             _PHASES+=("phase$i")
@@ -1119,7 +1085,7 @@ if [ ${#BUILDQEMU[@]} ]
 then
     for i in ${BUILDQEMU[@]}
     do
-        echo -n "Converting .img to .$i"
+        echo "Converting .img to .$i"
         qemu-img convert -p -f raw -O $i $LFS_IMG "$(basename -- "$LFS_IMG" .img).$i"
     done
 elif $BUILDISO

@@ -1,5 +1,5 @@
-_PHASESCOUNT=4
-#_PHASES=(phase1, phase2, phase3, phase4)
+_PHASESCOUNT=5
+#_PHASES=(phase1, phase2, phase3, phase4, phase5)
 
 #Script will search for 2 functions:
 #
