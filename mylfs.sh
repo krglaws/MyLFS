@@ -162,20 +162,21 @@ function check_dependencies {
     rm -f dummy.c dummy
 }
 
-#Not needed anymore
-# function install_static {
-#     local FILENAME=$1
-#     local FULLPATH="$LFS/$(basename $FILENAME | sed 's/__/\//g')"
-#     mkdir -p $(dirname $FULLPATH)
-#     cp -f $FILENAME $FULLPATH
-# }
-#Not needed anymore
-# function install_template {
-#     local FILENAME=$1
-#     local FULLPATH="$LFS/$(basename $FILENAME | sed 's/__/\//g')"
-#     mkdir -p $(dirname $FULLPATH)
-#     cat $FILENAME | envsubst > $FULLPATH
-# }
+function copy_sources {
+    local PKG_FOLD = $1
+    shift
+    for i in $@
+    do
+        local PKG_NAME=PKG_$([ -n "$NAME_OVERRIDE" ] && echo $NAME_OVERRIDE || echo $NAME | tr a-z A-Z)
+        PKG_NAME=$(basename ${!PKG_NAME})
+        local PKG_PATH=$PKG_FOLD/$PKG_NAME
+        cp -f PKG_PATH $LFS/sources/
+    done
+}
+
+function clear_sources {
+    rm -f $LFS/sources/*
+}
 
 function init_image {
     if [ $UID -ne 0 ]
@@ -266,7 +267,7 @@ function init_image {
     mkdir -p $LFS/home/tester
     chown 101:101 $LFS/home/tester
     mkdir -p $LFS/sources
-    cp ./pkgs/* $LFS/sources
+    # cp ./pkgs/* $LFS/sources
 
     # create symlinks
     for i in bin lib sbin
@@ -280,25 +281,12 @@ function init_image {
     # install static files
     echo $LFSHOSTNAME > $LFS/etc/hostname
     
-#    for f in ./static/*
-#    do
-#        local FILENAME=$1
-#        local FULLPATH="$LFS/$(basename $FILENAME | sed 's/__/\//g')"
-#        mkdir -p $(dirname $FULLPATH)
-#        cp -f $FILENAME $FULLPATH
-#        install_static $f
-#    done
+
     if [ -n "$KERNELCONFIG" ]
     then
         cp $KERNELCONFIG /boot/config-$KERNELVERS
     fi
 
-    # install templates
-#    for f in ./templates/*
-#    do
-#        install_template $f
-#    done
-#
     # make special device files
     mknod -m 600 $LFS/dev/console c 5 1
     mknod -m 666 $LFS/dev/null c 1 3
@@ -525,7 +513,7 @@ function build_phase {
         echo "ERROR: phases preceeding phase ${_PHASES[$PHASE-1]} have not been built"
         return 1
     fi
-    SSTR="Section $PHASESECTION. Phase ${_PHASES[$PHASE-1]}"
+    SSTR="Section $PHASESECTION. Phase ${_PHASES[$PHASE-1]} "
     HOUT="# "
     HOUT+=$(repeat_echo ${#SSTR} '#';echo)
     HOUT+="\n# ${SSTR}\n"
@@ -542,8 +530,13 @@ function build_phase {
     # make sure ./logs/ and ./logs/$PHASESECTION dir exists
     mkdir -p $LOG_DIR/$PHASESECTION
     
-    # This will be more stable (rechecks if it read correctly)
-    while IFS='' read -r pkg || [ "$pkg" ]
+    # This is more stable (Read and go)
+    PACKS=($(cat "$PHASE_DIR/build_order.txt"))
+
+    #Prepare packs to work
+    copy_sources $PHASESECTION $PACKS
+
+    for pkg in ${PACKS[@]}
     do
         if $FOUNDSTARTPKG && $ONEOFF
         then
@@ -567,7 +560,7 @@ function build_phase {
             build_package $pkg || return 1
         fi
 
-    done < $PHASE_DIR/build_order.txt
+    done 
 
     if [ -n "$STARTPKG" -a "$STARTPHASE" == "$PHASE" -a ! $FOUNDSTARTPKG ]
     then
@@ -577,6 +570,13 @@ function build_phase {
     if ! [ -d $LFS/root/.$PHASESECTION ]; then mkdir -p $LFS/root/.$PHASESECTION; fi
     touch $LFS/root/.$PHASESECTION/.phase$PHASE
 
+    clear_sources
+    SSTR="Done building phase ${_PHASES[$PHASE-1]} in section $PHASESECTION "
+    HOUT="# "
+    HOUT+=$(repeat_echo ${#SSTR} '#';echo)
+    HOUT+="\n# ${SSTR}\n"
+    HOUT+="# $(repeat_echo ${#SSTR} '~';echo)"
+    echo -e $HOUT 
     return 0
 }
 
@@ -600,13 +600,7 @@ function build_extension {
 #    # read pkgs.sh
     source "$EXTENSION/pkgs.sh"
 
-    $CHECKDEPS && check_dependencies && exit
-    $DOWNLOAD && download_pkgs $EXTENSION && exit
-    $INIT && download_pkgs $EXTENSION && init_image && unmount_image && exit
-    $MOUNT && mount_image && exit
-    $UNMOUNT && unmount_image && exit
-    $CLEAN && clean_image && exit
-    [ -n "$INSTALL_TGT" ] && install_image && exit
+    # $DOWNLOAD && download_pkgs $EXTENSION && exit
 
     $VERBOSE && set -x
     if [ -n "$STARTPHASE" ]
@@ -937,10 +931,10 @@ while [ $# -gt 0 ]; do
       shift
       shift
       ;;
-    -d|--download-pkgs)
-      DOWNLOAD=true
-      shift
-      ;;
+    # -d|--download-pkgs)
+    #   DOWNLOAD=true
+    #   shift
+    #   ;;
     -i|--init)
       INIT=true
       shift
@@ -1081,6 +1075,14 @@ then
 #    EXTENSION="$(cd $(dirname $EXTENSION) && pwd)/$(basename $EXTENSION)"
 fi
 
+
+$CHECKDEPS && check_dependencies && exit
+$MOUNT && mount_image && exit
+$UNMOUNT && unmount_image && exit
+$CLEAN && clean_image && exit
+$INIT && init_image && unmount_image && exit
+[ -n "$INSTALL_TGT" ] && install_image && exit
+
 if [ ${#BUILDQEMU[@]} ]
 then
     for i in ${BUILDQEMU[@]}
@@ -1090,7 +1092,7 @@ then
     done
 elif $BUILDISO
 then
-    startISO
+    startISO $$ exit
 else
     for i in $EXTENSIONS; do
         if [ $STARTSECTION == $(basename $i) ]; then FOUNDEDSTARTSECTION=true; fi

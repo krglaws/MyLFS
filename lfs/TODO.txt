@@ -1,4 +1,7 @@
-[ ] Check vim: cannot be reinstalled after installation
-[ ] Check lfsbootscript: Rules file can already exist.
-[ ] Syslinux: Is not coppied on rebuild... ned check of packages copy...
+[ ] Phase4: Check vim: cannot be reinstalled after installation
+[ ] Phase4: Check lfsbootscript: Rules file can already exist.
+[ ] Phase4: Check linux: Some of the rules must be added to generate `vmz` correctly.
+[ ] Phase5: Syslinux: Is not coppied on rebuild... need check of packages copy...
+        Possible resolution: copy only necessary packages on phases... #Harder
+                               or copy all packages on start of every phase... #Easier
 
