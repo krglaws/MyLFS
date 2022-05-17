@@ -957,8 +957,17 @@ while [ $# -gt 0 ]; do
       BUILDISO=true
       shift
       ;;
+    -q|--build-qemu)
+      BUILDQEMU+=("$2")
+      [ -z "$2" ] && echo "ERROR: $1 missing argument." && exit 1
+      [[ $2 = -* ]] && echo "ERROR: $1 missing argument." && exit 1
+      shift
+      shift
+      ;;
     -x|--extend)
       EXTENSION+=("$2")
+      [ -z "$2" ] && echo "ERROR: $1 missing argument." && exit 1
+      [[ $2 = -* ]] && echo "ERROR: $1 missing argument." && exit 1
       shift
       shift
       ;;
@@ -1035,7 +1044,7 @@ while [ $# -gt 0 ]; do
 done
 
 OPCOUNT=0
-for OP in BUILDISO BUILDALL CHECKDEPS DOWNLOAD INIT STARTPHASE MOUNT UNMOUNT INSTALL_TGT CLEAN
+for OP in BUILDISO BUILDALL CHECKDEPS DOWNLOAD INIT STARTPHASE MOUNT UNMOUNT INSTALL_TGT CLEAN BUILDQEMU
 do
     OP="${!OP}"
     if [ -n "$OP" -a "$OP" != "false" ]
@@ -1082,7 +1091,7 @@ then
     exit 1
 fi
 
-if [ ${#EXTENSIONS[@]} ]
+if [ ${#EXTENSIONS[@]} -gt 1 ]
 then
     if ! $BUILDALL && [ -z "$STARTPHASE" ]
     then
@@ -1106,7 +1115,14 @@ then
 #    EXTENSION="$(cd $(dirname $EXTENSION) && pwd)/$(basename $EXTENSION)"
 fi
 
-if $BUILDISO
+if [ ${#BUILDQEMU[@]} ]
+then
+    for i in ${BUILDQEMU[@]}
+    do
+        echo -n "Converting .img to .$i"
+        qemu-img convert -p -f raw -O $i $LFS_IMG "$(basename -- "$LFS_IMG" .img).$i"
+    done
+elif $BUILDISO
 then
     startISO
 else
