@@ -71,6 +71,7 @@ e2fsprogs
 sysklogd
 sysvinit
 lfsbootscripts
-linux
+#linux
 grub
+
 

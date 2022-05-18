@@ -6,6 +6,18 @@ set -e
 # Functions
 # ~~~~~~~~~
 
+function repeat_echo {
+	local start=1
+	local end=${1:-80}
+	local str="${2:-=}"
+	local range=$(seq $start $end)
+	for i in $range ; do echo -n "${str}"; done
+}
+
+function reecho {
+    echo -ne "\r$1"
+}
+
 function usage {
 cat <<EOF
 Welcome to MyLFS.
@@ -35,6 +47,9 @@ on the device you specify.
 
         -b|--build-all      Run the entire script from beginning to end.
 
+        -s|--build-iso      Run script to generate iso file. '.img' file must be 
+                            generated before executing.
+
         -x|--extend         Pass in the path to a custom build extension. See the
                             'example_extension' directory for reference.
 
@@ -43,6 +58,9 @@ on the device you specify.
 
         -i|--init           Create the .img file, partition it, setup basic directory
                             structure, then exit.
+
+        -t|--phase-id       Specify which portion of script you need to execute. If 
+                            not specified, will run 'lfs' scripts.
 
         -p|--start-phase
         -a|--start-package  Select a phase and optionally a package
@@ -144,18 +162,22 @@ function check_dependencies {
     rm -f dummy.c dummy
 }
 
-function install_static {
-    local FILENAME=$1
-    local FULLPATH="$LFS/$(basename $FILENAME | sed 's/__/\//g')"
-    mkdir -p $(dirname $FULLPATH)
-    cp -f $FILENAME $FULLPATH
+function copy_sources {
+    local PKG_FOLD=$1
+    shift
+    while [ $# -gt 0 ]
+    do 
+        local PKG_NAME=$1
+        PKG_NAME=$(basename ${!PKG_NAME})
+        $VERBOSE && echo "Coping ${!PKG_NAME} to sources"
+        local PKG_PATH=$PKG_FOLD/pkgs/$PKG_NAME
+        cp -f $PKG_PATH $LFS/sources/
+        shift
+    done
 }
 
-function install_template {
-    local FILENAME=$1
-    local FULLPATH="$LFS/$(basename $FILENAME | sed 's/__/\//g')"
-    mkdir -p $(dirname $FULLPATH)
-    cat $FILENAME | envsubst > $FULLPATH
+function clear_sources {
+    rm -f $LFS/sources/*
 }
 
 function init_image {
@@ -250,7 +272,7 @@ function init_image {
     mkdir -p $LFS/home/tester
     chown 101:101 $LFS/home/tester
     mkdir -p $LFS/sources
-    cp ./pkgs/* $LFS/sources
+    # cp ./pkgs/* $LFS/sources
 
     # create symlinks
     for i in bin lib sbin
@@ -263,20 +285,12 @@ function init_image {
 
     # install static files
     echo $LFSHOSTNAME > $LFS/etc/hostname
-    for f in ./static/*
-    do
-        install_static $f
-    done
+    
+
     if [ -n "$KERNELCONFIG" ]
     then
         cp $KERNELCONFIG /boot/config-$KERNELVERS
     fi
-
-    # install templates
-    for f in ./templates/*
-    do
-        install_template $f
-    done
 
     # make special device files
     mknod -m 600 $LFS/dev/console c 5 1
@@ -312,6 +326,7 @@ function cleanup_cancelled_download {
 }
 
 function download_pkgs {
+    start_dwld_time=$(date +%s.%3N)
     if [ -n "$1" ]
     then
         # if an extension is being built, it will
@@ -324,16 +339,18 @@ function download_pkgs {
 
     [ -f "$PACKAGE_LIST" ] || { echo "ERROR: $PACKAGE_LIST is missing." && exit 1; }
 
-    local PACKAGE_URLS=$(cat $PACKAGE_LIST | grep "^[^#]" | cut -d"=" -f2)
+    local PACKAGE_URLS=($(cat $PACKAGE_LIST | grep "^[^#]" | cut -d"=" -f2))
     local ALREADY_DOWNLOADED=$(ls $PACKAGE_DIR)
 
-    { $VERBOSE && echo "Downloading packages... "; } || echo -n "Downloading packages... "
-
-    for url in $PACKAGE_URLS
+    { $VERBOSE && echo "Downloading packages... "; } #|| echo -n "Downloading packages... "
+    # echo ${#PACKAGE_URLS[@]}
+    for i in ${!PACKAGE_URLS[@]}
     do
+        url="${PACKAGE_URLS[$i]}"
         trap "cleanup_cancelled_download $url && exit" ERR SIGINT
 
         $VERBOSE && echo -n "Downloading '$url'... "
+        reecho "Downloading packages for $(basename $1)... ($(($i+1))/${#PACKAGE_URLS[@]})"
         if ! echo $ALREADY_DOWNLOADED | grep $(basename $url) > /dev/null
         then
             if ! curl --location --silent --output $PACKAGE_DIR/$(basename $url) $url
@@ -348,8 +365,9 @@ function download_pkgs {
 
         trap - ERR SIGINT
     done
+    end_dwld_time=$(date +%s.%3N)
 
-    echo "done."
+    ( $TIMER || $VERBOSE ) && echo " done in $(echo "scale=3; $end_dwld_time - $start_dwld_time" | bc) seconds" || echo " done."
 }
 
 function mount_image {
@@ -416,16 +434,18 @@ function unmount_image {
 }
 
 function build_package {
+    start_pack_time=$(date +%s.%3N)
     local NAME=$1
     local NAME_OVERRIDE=$2
+    # echo $@
 
-    { $VERBOSE && echo "Building $NAME phase $PHASE..."; } || echo -n "Building $NAME phase $PHASE... "
+    { $VERBOSE && echo "Section $PHASESECTION phase $PHASE: building \"$NAME\" package..."; } || echo -n "Section $PHASESECTION phase $PHASE: building \"$NAME\" package... "
 
     local PKG_NAME=PKG_$([ -n "$NAME_OVERRIDE" ] && echo $NAME_OVERRIDE || echo $NAME | tr a-z A-Z)
     PKG_NAME=$(basename ${!PKG_NAME})
 
-    local LOG_FILE=$([ $PHASE -eq 5 ] && echo "$EXTENSION/logs/${NAME}.log" || echo "$LOG_DIR/${NAME}_phase${PHASE}.log")
-    local SCRIPT_PATH=$([ $PHASE -eq 5 ] && echo $EXTENSION/${NAME}.sh || echo ./phase${PHASE}/${NAME}.sh)
+    local LOG_FILE=$(echo "$EXTENSION/logs/${NAME}.log")
+    local SCRIPT_PATH=$(echo ./$PHASESECTION/phase${PHASE}/${NAME}.sh)
 
     local BUILD_INSTR="
         set -ex
@@ -469,7 +489,8 @@ function build_package {
         rm $LOG_FILE
     fi
 
-    echo "done."
+    end_pack_time=$(date +%s.%3N)
+    ( $TIMER || $VERBOSE ) && echo "done in $(echo "scale=3; $end_pack_time - $start_pack_time" | bc) seconds" || echo "done."
 
     return 0
 }
@@ -482,42 +503,71 @@ function build_phase {
     fi
 
     PHASE=$1
+    PHASESECTION=lfs
+    if ! [ -e $2 ]; then PHASESECTION=$2; fi
 
     if [ -n "$STARTPHASE" ]
     then
         if [ $PHASE -lt $STARTPHASE ] || { $FOUNDSTARTPHASE && $ONEOFF; }
         then
-            echo "Skipping phase $PHASE"
+            echo "Skipping phase ${_PHASES[$PHASE]} in $PHASESECTION section"
             return 0
         else
             FOUNDSTARTPHASE=true
         fi
     fi
 
-    if [ $PHASE -ne 1 -a ! -f $LFS/root/.phase$((PHASE-1)) ]
+    if [ $PHASE -ne 1 -a ! -f $LFS/root/.$PHASESECTION/.${_PHASES[$PHASE-2]} ]
     then
-        echo "ERROR: phases preceeding phase $PHASE have not been built"
+        echo "ERROR: phases preceeding phase ${_PHASES[$PHASE-1]} have not been built"
         return 1
     fi
+    SSTR="Section $PHASESECTION. Phase ${_PHASES[$PHASE-1]} "
+    HOUT="# "
+    HOUT+=$(repeat_echo ${#SSTR} '#';echo)
+    HOUT+="\n# ${SSTR}\n"
+    HOUT+="# $(repeat_echo ${#SSTR} '~';echo)"
+    echo -e $HOUT
 
-    echo -e "# #######\n# Phase $PHASE\n# ~~~~~~~"
+    source ./$PHASESECTION/phases.config.sh
 
-    CHROOT=false
-    if [ $PHASE -gt 2 ]
-    then
-        CHROOT=true
-    fi
-
-    local PHASE_DIR=./phase$PHASE 
+    local PHASE_DIR=./$PHASESECTION/${_PHASES[$PHASE-1]}
 
     # Phase 5 == a build extension
-    [ $PHASE -eq 5 ] && PHASE_DIR=$EXTENSION
+#    [ $PHASE -eq 5 ] && PHASE_DIR=$EXTENSION
 
-    # make sure ./logs/ dir exists
-    mkdir -p $LOG_DIR
-
-    while read pkg
+    # make sure ./logs/ and ./logs/$PHASESECTION dir exists
+    mkdir -p $LOG_DIR/$PHASESECTION
+    
+    # This is more stable (Read before and go)
+    PACKS=()
+    while IFS='' read -r pkgn || [ "$pkgn" ]
     do
+        if [ -z "$pkgn" -o "${pkgn:0:1}" == "#" ]
+        then
+            # skip comments
+            continue
+        fi
+        PACKS+=("$pkgn")
+    done < "$PHASE_DIR/build_order.txt" 
+
+    PACKSOURCES=()
+    while IFS='' read -r pkgn || [ "$pkgn" ]
+    do
+        if [ -z "$pkgn" -o "${pkgn:0:1}" == "#" ]
+        then
+            # skip comments
+            continue
+        fi
+        PACKSOURCES+=("$pkgn")
+    done < "$PHASE_DIR/pkgs_used.txt" 
+
+    #Prepare packs to work
+    copy_sources $PHASESECTION ${PACKSOURCES[@]}
+
+    for i in ${!PACKS[@]}
+    do
+        pkg=${PACKS[$i]}
         if $FOUNDSTARTPKG && $ONEOFF
         then
             # already found one-off build, just quit
@@ -540,16 +590,23 @@ function build_phase {
             build_package $pkg || return 1
         fi
 
-    done < $PHASE_DIR/build_order.txt
+    done 
 
     if [ -n "$STARTPKG" -a "$STARTPHASE" == "$PHASE" -a ! $FOUNDSTARTPKG ]
     then
         echo "ERROR: package build '$STARTPKG' not present in phase '$STARTPHASE'"
         return 1
     fi
+    if ! [ -d $LFS/root/.$PHASESECTION ]; then mkdir -p $LFS/root/.$PHASESECTION; fi
+    touch $LFS/root/.$PHASESECTION/.phase$PHASE
 
-    touch $LFS/root/.phase$PHASE
-
+    clear_sources
+    SSTR="Done building phase ${_PHASES[$PHASE-1]} in section $PHASESECTION "
+    HOUT="# "
+    HOUT+=$(repeat_echo ${#SSTR} '#';echo)
+    HOUT+="\n# ${SSTR}\n"
+    HOUT+="# $(repeat_echo ${#SSTR} '~';echo)"
+    echo -e $HOUT 
     return 0
 }
 
@@ -566,48 +623,79 @@ function build_extension {
     then
         echo "ERROR: extension '$EXTENSION' is missing a 'pkgs.sh' file."
         return 1
-    elif [ ! -f "$EXTENSION/build_order.txt" ]
-    then
-        echo "ERROR: extension '$EXTENSION' is missing a 'build_order.txt' file."
-        return 1
     fi
 
-    mkdir -p $EXTENSION/{logs,pkgs}
+    start_time=$(date +%s.%3N)
+# Create Logs and packages
+   mkdir -p $EXTENSION/{logs,pkgs}
 
-    # read in extension config.sh if present
-    [ -f "$EXTENSION/config.sh" ] && source "$EXTENSION/config.sh"
-
-    # read pkgs.sh
+#    # read pkgs.sh
     source "$EXTENSION/pkgs.sh"
 
-    # download extension packages
-    download_pkgs $EXTENSION
+    # $DOWNLOAD && download_pkgs $EXTENSION && exit
 
     $VERBOSE && set -x
-
-    # copy packages onto LFS image
-    cp -f $EXTENSION/pkgs/* $LFS/sources/
-
-    # install static files if present
-    if [ -d "$EXTENSION/static" ]
+    if [ -n "$STARTPHASE" ]
     then
-        for f in $EXTENSION/static/*
-        do
-            install_static $f
-        done
-    fi
-
-    # install template files if present
-    if [ -d "$EXTENSION/templates" ]
+        download_pkgs $EXTENSION
+        mount_image
+    elif $BUILDALL
     then
-        for f in $EXTENSION/templates/*
-        do
-            install_template $f
-        done
+        download_pkgs $EXTENSION
+        if [ $EXTENSION==lfs ]; then
+            init_image
+        else
+            mount_image
+        fi
+    else
+        usage
+        exit
     fi
+    PATH=$LFS/tools/bin:$PATH
+    CONFIG_SITE=$LFS/usr/share/config.site
+    LC_ALL=POSIX
+    export LC_ALL PATH CONFIG_SITE
 
-    # build extension
-    build_phase 5 || return 1
+    trap "echo 'build cancelled.' && cd $FULLPATH && unmount_image && exit" SIGINT
+    trap "echo 'build failed.' && cd $FULLPATH && unmount_image && exit 1" ERR
+    
+    # Loading config from section
+    source $EXTENSION/config.sh
+    # Defining Phases
+    if [ -z $_PHASES ]; then
+        if [ -z $_PHASESCOUNT ]; then echo -e "Please provide at least one of the config sections in ./$EXTENSION/config.sh file. Neither of \$_PHASESCOUNT or \$_PHASES are defined"; exit; fi
+        _PHASES=()
+        for i in $(seq 1 $_PHASESCOUNT); do
+            _PHASES+=("phase$i")
+        done
+    else    
+        if ! [ -z $_PHASESCOUNT ]; then echo -n "\$_PHASESCOUNT is defined with \$_PHASES. \$_PHASECOUNT will be skipped\n"; fi
+    fi
+    #Execute phases
+#    echo -n "${#_PHASES[@]}  ${_PHASES[@]}"
+    for ph_index in $(seq 1 ${#_PHASES[@]}); do
+        start_phase_time=$(date +%s.%3N)
+        type run_before_${_PHASES[$ph_index-1]} &>/dev/null && run_before_${_PHASES[$ph_index-1]}
+        build_phase $ph_index $EXTENSIONNAME
+        type run_after_${_PHASES[$ph_index-1]} &>/dev/null && run_after_${_PHASES[$ph_index-1]}
+        end_phase_time=$(date +%s.%3N)
+        ( $TIMER || $VERBOSE ) && echo "Phase was ended in $(echo "scale=3; $end_phase_time - $start_phase_time" | bc) seconds" 
+        $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
+    done
+
+#    [ -n "$EXTENSION" ] && build_extension
+#
+
+    # unmount and detatch image
+    unmount_image
+
+    end_time=$(date +%s.%3N)
+
+    echo "Extension \"$EXTENSIONNAME\" build successful."
+     ( $TIMER || $VERBOSE ) && echo "Extension was built in $(echo echo \"scale=3; $end_time - $start_time\" | bc) seconds" 
+
+
+
 }
 
 function install_image {
@@ -730,6 +818,85 @@ function clean_image {
     fi
 }
 
+function mainLFSbuild {
+    # ###########
+    # Start build
+    # ~~~~~~~~~~~
+
+    # Perform single operations    
+
+    $CHECKDEPS && check_dependencies && exit
+    $DOWNLOAD && download_pkgs && exit
+    $INIT && download_pkgs && init_image && unmount_image && exit
+    $MOUNT && mount_image && exit
+    $UNMOUNT && unmount_image && exit
+    $CLEAN && clean_image && exit
+    [ -n "$INSTALL_TGT" ] && install_image && exit
+
+    if [ -n "$STARTPHASE" ]
+    then
+        download_pkgs
+        mount_image
+    elif $BUILDALL
+    then
+        download_pkgs
+        init_image
+    else
+        usage
+        exit
+    fi
+    SECTION=lfs
+    if ! [ -z $2 ]; then SECTION=$2; fi
+    PATH=$LFS/tools/bin:$PATH
+    CONFIG_SITE=$LFS/usr/share/config.site
+    LC_ALL=POSIX
+    export LC_ALL PATH CONFIG_SITE
+
+    trap "echo 'build cancelled.' && cd $FULLPATH && unmount_image && exit" SIGINT
+    trap "echo 'build failed.' && cd $FULLPATH && unmount_image && exit 1" ERR
+    
+    # Loading config from section
+    source ./$SECTION/config.sh
+    # Defining Phases
+    if [ -z $_PHASES ]; then
+        if [ -z $_PHASESCOUNT ]; then echo -e "Please provide at least one of the config sections in ./$SECTION/config.sh file. Neither of \$_PHASESCOUNT or \$_PHASES are defined"; exit; fi
+        _PHASES=()
+        for i in $(seq 1 $_PHASESCOUNT); do
+            _PHASES+=("phase$i")
+        done
+    else    
+        if ! [ -z $_PHASESCOUNT ]; then echo -n "\$_PHASESCOUNT is defined with \$_PHASES. \$_PHASECOUNT will be skipped\n"; fi
+    fi
+    #Execute phases
+    # echo -n "${#_PHASES[@]}  ${_PHASES[@]}"
+    for ph_index in $(seq 1 ${#_PHASES[@]}); do
+        type run_before_${_PHASES[$ph_index-1]} &>/dev/null && run_before_${_PHASES[$ph_index-1]}
+        build_phase $ph_index $SECTION
+        type run_after_${_PHASES[$ph_index-1]} &>/dev/null && run_after_${_PHASES[$ph_index-1]}
+        $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
+    done
+
+    # [ -n "$EXTENSION" ] && build_extension
+    #
+    # final cleanup
+    rm -rf $LFS/tmp/*
+    find $LFS/usr/lib $LFS/usr/libexec -name \*.la -delete
+    find $LFS/usr -depth -name $LFS_TGT\* | xargs rm -rf
+    rm -rf $LFS/home/tester
+    sed -i 's/^.*tester.*$//' $LFS/etc/{passwd,group}
+
+    # unmount and detatch image
+    unmount_image
+
+    echo "build successful."
+
+}
+
+function startISO {
+:
+}
+
+
 
 # ###############
 # Parse arguments
@@ -737,24 +904,32 @@ function clean_image {
 
 cd $(dirname $0)
 
+start_timer=$(date +%s.%3N)
+
 # import config vars
 source ./config.sh
 
 # import package list
-source ./pkgs.sh
+# source ./lfs/pkgs.sh
 
 
 VERBOSE=false
 CHECKDEPS=false
 BUILDALL=false
+BUILDISO=false
+BUILDQEMU=()
+EXTENSIONS=(lfs)
 DOWNLOAD=false
 INIT=false
 ONEOFF=false
 FOUNDSTARTPKG=false
 FOUNDSTARTPHASE=false
+FOUNDEDSTARTSECTION=true
 MOUNT=false
 UNMOUNT=false
 CLEAN=false
+TIMER=false
+STARTSECTION=lfs
 
 while [ $# -gt 0 ]; do
   case $1 in
@@ -774,28 +949,55 @@ while [ $# -gt 0 ]; do
       BUILDALL=true
       shift
       ;;
+    -s|--build-iso)
+      BUILDISO=true
+      shift
+      ;;
+    -q|--build-qemu)
+      BUILDQEMU+=("$2")
+      [ -z "$2" ] && echo "ERROR: $1 missing argument." && exit 1
+      [[ $2 = -* ]] && echo "ERROR: $1 missing argument." && exit 1
+      shift
+      shift
+      ;;
     -x|--extend)
-      EXTENSION="$2"
+      EXTENSION+=("$2")
+      [ -z "$2" ] && echo "ERROR: $1 missing argument." && exit 1
+      [[ $2 = -* ]] && echo "ERROR: $1 missing argument." && exit 1
       shift
       shift
       ;;
-    -d|--download-pkgs)
-      DOWNLOAD=true
+    # -d|--download-pkgs)
+    #   DOWNLOAD=true
+    #   shift
+    #   ;;
+    --time)
+      TIMER=true
       shift
-      ;;
+    ;;
     -i|--init)
       INIT=true
+      shift
+      ;;
+    -t|--start-section)
+      STARTSECTION="$2"
+      FOUNDEDSTARTSECTION=false
+      [ -z "$STARTSECTION" ] && echo "ERROR: $1 missing argument." && exit 1
+      [[ $STARTSECTION = -* ]] && echo "ERROR: $1 missing argument." && exit 1
+      shift
       shift
       ;;
     -p|--start-phase)
       STARTPHASE="$2"
       [ -z "$STARTPHASE" ] && echo "ERROR: $1 missing argument." && exit 1
+      [[ $STARTPHASE = -* ]] && echo "ERROR: $1 missing argument." && exit 1
       shift
       shift
       ;;
     -a|--start-package)
       STARTPKG="$2"
       [ -z "$STARTPKG" ] && echo "ERROR: $1 missing argument." && exit 1
+      [[ $STARTPKG = -* ]] && echo "ERROR: $1 missing argument." && exit 1
       shift
       shift
       ;;
@@ -806,6 +1008,7 @@ while [ $# -gt 0 ]; do
     -k|--kernel-config)
       KERNELCONFIG="$2"
       [ -z "$KERNELCONFIG" ] && echo "ERROR: $1 missing argument." && exit 1
+      [[ $KERNELCONFIG = -* ]] && echo "ERROR: $1 missing argument." && exit 1
       shift
       shift
       ;;
@@ -820,6 +1023,7 @@ while [ $# -gt 0 ]; do
     -n|--install)
       INSTALL_TGT="$2"
       [ -z "$INSTALL_TGT" ] && echo "ERROR: $1 missing argument." && exit 1
+      [[ $INSTALL_TGT = -* ]] && echo "ERROR: $1 missing argument." && exit 1
       shift
       shift
       ;;
@@ -840,7 +1044,7 @@ while [ $# -gt 0 ]; do
 done
 
 OPCOUNT=0
-for OP in BUILDALL CHECKDEPS DOWNLOAD INIT STARTPHASE MOUNT UNMOUNT INSTALL_TGT CLEAN
+for OP in BUILDISO BUILDALL CHECKDEPS DOWNLOAD INIT STARTPHASE MOUNT UNMOUNT INSTALL_TGT CLEAN BUILDQEMU
 do
     OP="${!OP}"
     if [ -n "$OP" -a "$OP" != "false" ]
@@ -855,15 +1059,20 @@ do
     fi
 done
 
+if [ -n "$STARTSECTION" ]
+then
+    if (! [ $STARTSECTION == lfs ]) && [ ! -f $LFS_IMG ]
+    then
+        echo "ERROR: $LFS_IMG not found - cannot start from phase $STARTPHASE."
+        exit 1
+    fi
+fi
+
 if [ -n "$STARTPHASE" ]
 then
-    if ! [[ "$STARTPHASE" =~ ^[1-5]$ ]]
+    if ! [[ "$STARTPHASE" =~ ^[1-9][0-9]*$ ]]
     then
-        echo "ERROR: -p|--start-phase must specify a number between 1 and 5."
-        exit 1
-    elif [ "$STARTPHASE" -eq 5 ] && [ -z "$EXTENSION" ]
-    then
-        echo "ERROR: phase 5 only exists if an -x|--extend has been specified."
+        echo "-p|--start-phase must be a number from 1 to the number of phases inside of specified section"
         exit 1
     elif [ ! -f $LFS_IMG ]
     then
@@ -882,91 +1091,62 @@ then
     exit 1
 fi
 
-if [ -n "$EXTENSION" ]
+if [ ${#EXTENSIONS[@]} -gt 1 ]
 then
     if ! $BUILDALL && [ -z "$STARTPHASE" ]
     then
         echo "ERROR: -x|--extend has no effect without either -b|--build-all or -p|--start-phase set."
         exit 1
-    elif $ONEOFF && [ "$STARTPHASE" -ne 5 ]
+    elif $ONEOFF
     then
-        echo "ERROR: -x|--extend has no effect if -o|--one-off is set and -p|--start-phase != 5."
+        echo "ERROR: -x|--extend has no effect if -o|--one-off is set."
         exit 1
-    elif [ ! -d "$EXTENSION" ]
-    then
-        echo "ERROR: '$EXTENSION' is not a directory or does not exist."
+    else
+        for i in $EXTENSIONS; do
+            if [ ! -d "$i" ]
+            then
+                echo "ERROR: '$i' is not a directory or does not exist."
+                exit 1
+            fi
+        done
     fi
-
-    # get full path to extension
-    EXTENSION="$(cd $(dirname $EXTENSION) && pwd)/$(basename $EXTENSION)"
+    
 fi
 
 
-# ###########
-# Start build
-# ~~~~~~~~~~~
-
-# Perform single operations
 $CHECKDEPS && check_dependencies && exit
-$DOWNLOAD && download_pkgs && exit
-$INIT && download_pkgs && init_image && unmount_image && exit
 $MOUNT && mount_image && exit
 $UNMOUNT && unmount_image && exit
 $CLEAN && clean_image && exit
+$INIT && init_image && unmount_image && exit
 [ -n "$INSTALL_TGT" ] && install_image && exit
 
-if [ -n "$STARTPHASE" ]
+
+if ! [ ${#BUILDQEMU[@]} ]
 then
-    download_pkgs
-    mount_image
-elif $BUILDALL
+    command -v qemu-img >/dev/null || { echo "qemu-img command not found."; exit 1; } 
+    for i in ${BUILDQEMU[@]}
+    do
+        echo "Converting .img to .$i"
+        qemu-img convert -p -f raw -O $i $LFS_IMG "$(basename -- "$LFS_IMG" .img).$i"
+    done
+elif $BUILDISO
 then
-    download_pkgs
-    init_image
+    startISO $$ exit
 else
-    usage
-    exit
+    for i in $EXTENSIONS; do
+        if [ $STARTSECTION == $(basename $i) ]; then 
+            FOUNDEDSTARTSECTION=true; 
+        fi
+        if [ $FOUNDEDSTARTSECTION ]; then
+            EXTENSION="$(cd $(dirname $i) && pwd)/$(basename $i)"
+            EXTENSIONNAME="$(basename $i)"
+            build_extension
+            if [ $FOUNDEDSTARTSECTION -a $ONEOFF ]; then echo "Extension builded. exiting." && exit ; fi
+        else
+            echo "Skipping $(basename $i) section..."
+        fi
+    done
 fi
-
-PATH=$LFS/tools/bin:$PATH
-CONFIG_SITE=$LFS/usr/share/config.site
-LC_ALL=POSIX
-export LC_ALL PATH CONFIG_SITE
-
-trap "echo 'build cancelled.' && cd $FULLPATH && unmount_image && exit" SIGINT
-trap "echo 'build failed.' && cd $FULLPATH && unmount_image && exit 1" ERR
-
-build_phase 1
-
-$ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
-
-build_phase 2
-
-$ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
-
-build_phase 3
-
-# phase 3 cleanup
-rm -rf $LFS/usr/share/{info,man,doc}/*
-find $LFS/usr/{lib,libexec} -name \*.la -delete
-rm -rf $LFS/tools
-
-$ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
-
-build_phase 4
-
-$ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
-
-[ -n "$EXTENSION" ] && build_extension
-
-# final cleanup
-rm -rf $LFS/tmp/*
-find $LFS/usr/lib $LFS/usr/libexec -name \*.la -delete
-find $LFS/usr -depth -name $LFS_TGT\* | xargs rm -rf
-rm -rf $LFS/home/tester
-sed -i 's/^.*tester.*$//' $LFS/etc/{passwd,group}
-
-# unmount and detatch image
-unmount_image
-
-echo "build successful."
+end_timer=$(date +%s.%3N)
+( $TIMER || $VERBOSE ) && echo "Script finished in $(echo "scale=3; $end_timer - $start_timer" | bc) seconds"
