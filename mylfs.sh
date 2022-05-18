@@ -903,6 +903,8 @@ function startISO {
 
 cd $(dirname $0)
 
+start_timer=$(date +%s.%3N)
+
 # import config vars
 source ./config.sh
 
@@ -1145,3 +1147,5 @@ else
         fi
     done
 fi
+end_timer=$(date +%s.%3N)
+( $TIMER || $VERBOSE ) && echo "Script finished in $(echo "scale=3; $end_timer - $start_timer" | bc) seconds"
