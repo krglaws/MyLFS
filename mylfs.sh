@@ -234,11 +234,7 @@ function init_image {
 
     sync
 
-<<<<<<< HEAD
-    LFSPARTUUID=$(lsblk -o PARTUUID $LOOP_P1 | tail -1) # needed for grub.cfg
-=======
     export LFSPARTUUID=$(lsblk -o PARTUUID $LOOP | tail -1) # needed for grub.cfg
->>>>>>> 8ee21dbb973efd8a97d2fb9a6daf5a82a0fe7d2b
 
     # setup root partition
     mkfs -t $LFS_FS $LOOP_P1 &> /dev/null
