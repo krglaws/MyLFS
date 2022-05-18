@@ -164,13 +164,15 @@ function check_dependencies {
 
 function copy_sources {
     local PKG_FOLD=$1
-    for i in ${!PACKS[@]}
+    shift
+    while [ $# -gt 0 ]
     do 
-        local NAME_OVERRIDE="$(echo ${PACKS[$i]} | cut -d" " -f2)"
-        local PKG_NAME=PKG_$([ -n "$NAME_OVERRIDE" ] && echo $NAME_OVERRIDE | tr a-z A-Z)
+        local PKG_NAME=$1
         PKG_NAME=$(basename ${!PKG_NAME})
+        $VERBOSE && echo "Coping ${!PKG_NAME} to sources"
         local PKG_PATH=$PKG_FOLD/pkgs/$PKG_NAME
         cp -f $PKG_PATH $LFS/sources/
+        shift
     done
 }
 
@@ -321,6 +323,7 @@ function cleanup_cancelled_download {
 }
 
 function download_pkgs {
+    start_dwld_time=$(date +%s.%3N)
     if [ -n "$1" ]
     then
         # if an extension is being built, it will
@@ -359,8 +362,9 @@ function download_pkgs {
 
         trap - ERR SIGINT
     done
+    end_dwld_time=$(date +%s.%3N)
 
-    echo " done."
+    ( $TIMER || $VERBOSE ) && echo " done in $(echo "scale=3; $end_dwld_time - $start_dwld_time" | bc) seconds" || echo " done."
 }
 
 function mount_image {
@@ -429,8 +433,10 @@ function unmount_image {
 }
 
 function build_package {
+    start_pack_time=$(date +%s.%3N)
     local NAME=$1
     local NAME_OVERRIDE=$2
+    # echo $@
 
     { $VERBOSE && echo "Section $PHASESECTION phase $PHASE: building \"$NAME\" package..."; } || echo -n "Section $PHASESECTION phase $PHASE: building \"$NAME\" package... "
 
@@ -482,7 +488,8 @@ function build_package {
         rm $LOG_FILE
     fi
 
-    echo "done."
+    end_pack_time=$(date +%s.%3N)
+    ( $TIMER || $VERBOSE ) && echo "done in $(echo "scale=3; $end_pack_time - $start_pack_time" | bc) seconds" || echo "done."
 
     return 0
 }
@@ -543,11 +550,23 @@ function build_phase {
         PACKS+=("$pkgn")
     done < "$PHASE_DIR/build_order.txt" 
 
-    #Prepare packs to work
-    copy_sources $PHASESECTION
-
-    for pkg in ${PACKS[@]}
+    PACKSOURCES=()
+    while IFS='' read -r pkgn || [ "$pkgn" ]
     do
+        if [ -z "$pkgn" -o "${pkgn:0:1}" == "#" ]
+        then
+            # skip comments
+            continue
+        fi
+        PACKSOURCES+=("$pkgn")
+    done < "$PHASE_DIR/pkgs_used.txt" 
+
+    #Prepare packs to work
+    copy_sources $PHASESECTION ${PACKSOURCES[@]}
+
+    for i in ${!PACKS[@]}
+    do
+        pkg=${PACKS[$i]}
         if $FOUNDSTARTPKG && $ONEOFF
         then
             # already found one-off build, just quit
@@ -604,6 +623,8 @@ function build_extension {
         echo "ERROR: extension '$EXTENSION' is missing a 'pkgs.sh' file."
         return 1
     fi
+
+    start_time=$(date +%s.%3N)
 # Create Logs and packages
    mkdir -p $EXTENSION/{logs,pkgs}
 
@@ -652,25 +673,26 @@ function build_extension {
     #Execute phases
 #    echo -n "${#_PHASES[@]}  ${_PHASES[@]}"
     for ph_index in $(seq 1 ${#_PHASES[@]}); do
+        start_phase_time=$(date +%s.%3N)
         type run_before_${_PHASES[$ph_index-1]} &>/dev/null && run_before_${_PHASES[$ph_index-1]}
         build_phase $ph_index $EXTENSIONNAME
         type run_after_${_PHASES[$ph_index-1]} &>/dev/null && run_after_${_PHASES[$ph_index-1]}
+        end_phase_time=$(date +%s.%3N)
+        ( $TIMER || $VERBOSE ) && echo "Phase was ended in $(echo "scale=3; $end_phase_time - $start_phase_time" | bc) seconds" 
         $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
     done
 
 #    [ -n "$EXTENSION" ] && build_extension
 #
-    # final cleanup
-#    rm -rf $LFS/tmp/*
-#    find $LFS/usr/lib $LFS/usr/libexec -name \*.la -delete
-#    find $LFS/usr -depth -name $LFS_TGT\* | xargs rm -rf
-#    rm -rf $LFS/home/tester
-#    sed -i 's/^.*tester.*$//' $LFS/etc/{passwd,group}
 
     # unmount and detatch image
     unmount_image
 
+    end_time=$(date +%s.%3N)
+
     echo "Extension \"$EXTENSIONNAME\" build successful."
+     ( $TIMER || $VERBOSE ) && echo "Extension was built in $(echo echo \"scale=3; $end_time - $start_time\" | bc) seconds" 
+
 
 
 }
@@ -903,6 +925,7 @@ FOUNDEDSTARTSECTION=true
 MOUNT=false
 UNMOUNT=false
 CLEAN=false
+TIMER=false
 STARTSECTION=lfs
 
 while [ $# -gt 0 ]; do
@@ -945,6 +968,10 @@ while [ $# -gt 0 ]; do
     #   DOWNLOAD=true
     #   shift
     #   ;;
+    --time)
+      TIMER=true
+      shift
+    ;;
     -i|--init)
       INIT=true
       shift
@@ -1040,7 +1067,7 @@ fi
 
 if [ -n "$STARTPHASE" ]
 then
-    if ! [ "$STARTPHASE" =~ ^[1-9][0-9]*$ ]
+    if ! [[ "$STARTPHASE" =~ ^[1-9][0-9]*$ ]]
     then
         echo "-p|--start-phase must be a number from 1 to the number of phases inside of specified section"
         exit 1
@@ -1105,14 +1132,16 @@ then
     startISO $$ exit
 else
     for i in $EXTENSIONS; do
-        if [ $STARTSECTION == $(basename $i) ]; then FOUNDEDSTARTSECTION=true; fi
+        if [ $STARTSECTION == $(basename $i) ]; then 
+            FOUNDEDSTARTSECTION=true; 
+        fi
         if [ $FOUNDEDSTARTSECTION ]; then
             EXTENSION="$(cd $(dirname $i) && pwd)/$(basename $i)"
             EXTENSIONNAME="$(basename $i)"
             build_extension
+            if [ $FOUNDEDSTARTSECTION -a $ONEOFF ]; then echo "Extension builded. exiting." && exit ; fi
         else
             echo "Skipping $(basename $i) section..."
         fi
     done
 fi
-

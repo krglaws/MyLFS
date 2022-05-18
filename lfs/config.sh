@@ -36,3 +36,12 @@ function run_after_phase3 {
     find $LFS/usr/{lib,libexec} -name \*.la -delete
     rm -rf $LFS/tools
 }
+
+function run_after_phase5 {
+    # final cleanup
+   rm -rf $LFS/tmp/*
+   find $LFS/usr/lib $LFS/usr/libexec -name \*.la -delete
+   find $LFS/usr -depth -name $LFS_TGT\* | xargs rm -rf
+   rm -rf $LFS/home/tester
+   sed -i 's/^.*tester.*$//' $LFS/etc/{passwd,group}
+}
