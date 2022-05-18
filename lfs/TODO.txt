@@ -4,4 +4,3 @@
 [ ] Phase5: Syslinux: Is not coppied on rebuild... need check of packages copy...
         Possible resolution: copy only necessary packages on phases... #Harder
                                or copy all packages on start of every phase... #Easier
-
