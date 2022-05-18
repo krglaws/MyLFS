@@ -229,14 +229,17 @@ function init_image {
 
     # reattach loop device to re-read partition table
     losetup -d $LOOP
-
-    sync
-
     losetup -P $LOOP $LFS_IMG
-
     sync
 
-    export LFSPARTUUID=$(lsblk -o PARTUUID $LOOP | tail -1) # needed for grub.cfg
+    # exporting for grub.cfg
+    export LFSPARTUUID="$(lsblk -o PARTUUID $LOOP_P1 | tail -1)"
+    while [ -z "$LFSPARTUUID" ]
+    do
+        # sometimes it takes a few seconds for the PARTUUID to be readable
+        sleep 1
+        export LFSPARTUUID="$(lsblk -o PARTUUID $LOOP_P1 | tail -1)"
+    done
 
     # setup root partition
     mkfs -t $LFS_FS $LOOP_P1 &> /dev/null
@@ -390,8 +393,6 @@ function mount_image {
     local LOOP_P1=${LOOP}p1
 
     losetup -P $LOOP $LFS_IMG
-
-    sync
 
     mount $LOOP_P1 $LFS
 
