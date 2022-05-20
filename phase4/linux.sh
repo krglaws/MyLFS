@@ -1,35 +1,14 @@
 # LINUX Phase 4
 
-function config_on {
-    local UNCOMMENTED="^${1}=.*\$"
-    local COMMENTED="^# ${1} .*\$"
-    if [ -z "$(grep ${1} ./.config)" ]
-    then
-        echo "${1}=y" >> ./.config
-        return
-    fi
-    sed -E -i "s/${UNCOMMENTED}|${COMMENTED}/${1}=y/" ./.config
-}
-
-function config_off {
-    sed -i "s/^${1}=.*$/# $1 is not set/" ./.config
-}
-
 CONFIGFILE=config-$KERNELVERS
-make mrproper
 
-# if kernel config not provided, use default architecture config
-make defconfig
+make mrproper
 
 if [ -f /boot/$CONFIGFILE ]
 then
     cp /boot/$CONFIGFILE ./.config
 else
-    config_off CONFIG_IKHEADERS
-    config_on  CONFIG_FB
-    config_off CONFIG_UEVENT_HELPER
-    config_on  CONFIG_DEVTMPFS
-    config_on  CONFIG_MODULES
+    make defconfig
 fi
 
 make
