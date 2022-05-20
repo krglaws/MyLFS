@@ -516,7 +516,10 @@ function build_phase {
     # make sure ./logs/ dir exists
     mkdir -p $LOG_DIR
 
-    while read pkg
+    # read phase build_order.txt into array
+    mapfile -t BUILD_ORDER <<< $(grep -Ev '^[#]|^$' phase1/build_order.txt)
+
+    for pkg in ${BUILD_ORDER[@]}
     do
         if $FOUNDSTARTPKG && $ONEOFF
         then
@@ -540,7 +543,7 @@ function build_phase {
             build_package $pkg || return 1
         fi
 
-    done < $PHASE_DIR/build_order.txt
+    done
 
     if [ -n "$STARTPKG" -a "$STARTPHASE" == "$PHASE" -a ! $FOUNDSTARTPKG ]
     then
