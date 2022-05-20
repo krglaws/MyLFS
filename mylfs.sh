@@ -516,19 +516,18 @@ function build_phase {
     # make sure ./logs/ dir exists
     mkdir -p $LOG_DIR
 
-    # read phase build_order.txt into array
-    mapfile -t BUILD_ORDER <<< $(grep -Ev '^[#]|^$' phase1/build_order.txt)
+    local PKG_LIST=$(grep -Ev '^[#]|^$' $PHASE_DIR/build_order.txt)
+    local PKG_COUNT=$(echo "$PKG_LIST" | wc -l)
+    mapfile -t BUILD_ORDER <<< $(echo "$PKG_LIST")
 
-    for pkg in ${BUILD_ORDER[@]}
+    for ((i=0;i<$PKG_COUNT;i++))
     do
+        local pkg="${BUILD_ORDER[$i]}"
+
         if $FOUNDSTARTPKG && $ONEOFF
         then
             # already found one-off build, just quit
             return 0
-        elif [ -z "$pkg" -o "${pkg:0:1}" == "#" ]
-        then
-            # skip comments
-            continue
         elif [ -n "$STARTPKG" ] && ! $FOUNDSTARTPKG
         then
             # if start package is defined, skip until found
