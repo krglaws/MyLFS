@@ -660,6 +660,7 @@ function install_image {
         exit
     fi
     partprobe $INSTALL_TGT
+    sleep 1
 
     trap "echo 'install failed.' && unmount_image && exit 1" ERR
 
