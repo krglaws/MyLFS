@@ -7,6 +7,7 @@ make mrproper
 if [ -f /boot/$CONFIGFILE ]
 then
     cp /boot/$CONFIGFILE ./.config
+    make olddefconfig
 else
     make defconfig
 fi
