@@ -70,7 +70,7 @@ on the device you specify.
         -c|--clean          This will unmount and delete the image, and clear the
                             logs.
 
-        -h|--help           Show this message."
+        -h|--help           Show this message.
 EOF
 }
 
@@ -269,7 +269,7 @@ function init_image {
     done
     if [ -n "$KERNELCONFIG" ]
     then
-        cp $KERNELCONFIG /boot/config-$KERNELVERS
+        cp $KERNELCONFIG $LFS/boot/config-$KERNELVERS
     fi
 
     # install templates
@@ -649,6 +649,9 @@ function install_image {
     echo "Installing LFS onto ${INSTALL_TGT}... "
 
     $VERBOSE && set -x
+
+    # wipe beginning of device (sometimes grub-install complains about "multiple partition labels")
+    dd if=/dev/zero of=$INSTALL_TGT count=2048
  
     # partition the device.
     # remove spaces and comments
@@ -660,7 +663,6 @@ function install_image {
         exit
     fi
     partprobe $INSTALL_TGT
-    sleep 1
 
     trap "echo 'install failed.' && unmount_image && exit 1" ERR
 
