@@ -18,7 +18,7 @@ How to create an extension:
     my_extension/
 
 
-- Inside of your repository, add a file called "pkgs.sh". This will contain
+- Inside of your repository, add a file called "packages.sh". This will contain
   a listing of the URLs of all of the packages your extension will be
   building. The format should look like this:
 
@@ -37,7 +37,7 @@ How to create an extension:
     ```
 
 
-- Once you have established the list of package URLs inside of pkgs.sh,
+- Once you have established the list of package URLs inside of packages.sh,
   you can add the build scripts for each respective package.
 
     For example:
@@ -153,8 +153,8 @@ How to create an extension:
 
 More Notes:
 
-- The package tarballs for extensions will be saved to "<extension-dir>/pkgs/",
-  separate from the LFS packages that are kept in "MyLFS/pkgs/". The same is true
+- The package tarballs for extensions will be saved to "<extension-dir>/packages/",
+  separate from the LFS packages that are kept in "MyLFS/packages/". The same is true
   for the extension build logs, which will be kept in "<extension-dir>/logs/".
 
 - mylfs.sh treats extensions as a fifth phase, ontop of the four builtin phases.

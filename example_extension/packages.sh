@@ -1,4 +1,4 @@
-# pkgs.sh
+# packages.sh
 #export PKG_<SCRIPTNAME>=<pkg URL>
 
 export PKG_LYNX=https://invisible-mirror.net/archives/lynx/tarballs/lynx2.8.9rel.1.tar.bz2

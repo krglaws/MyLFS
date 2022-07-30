@@ -11,8 +11,6 @@ Basically, just run `sudo ./mylfs.sh --build-all` and then stare at your termina
 ```
 $ sudo ./build.sh --help
 
-Welcome to MyLFS.
-
     WARNING: Most of the functionality in this script requires root privilages,
 and involves the partitioning, mounting and unmounting of device files. Use at
 your own risk.
@@ -27,53 +25,53 @@ on the commandline. Be careful with that last one - it WILL destroy all partitio
 on the device you specify.
 
     options:
-        -v|--version        Print the LFS version this build is based on, then exit.
-        
-        -V|--verbose        The script will output more information where applicable
-                            (careful what you wish for).
-                            
-        -e|--check          Output LFS dependency version information, then exit.
-                            It is recommended that you run this before proceeding
-                            with the rest of the build.
-                            
-        -b|--build-all      Run the entire script from beginning to end.
+        -v|--version            Print the LFS version this build is based on, then exit.
 
-        -x|--extend         Pass in the path to a custom build extension. See the
-                            'example_extension' directory for reference.
+        -V|--verbose            The script will output more information where applicable
+                                (careful what you wish for).
 
-        -d|--download-pkgs  Download all packages into the 'pkgs' directory, then
-                            exit.
-                            
-        -i|--init           Create the .img file, partition it, setup basic directory
-                            structure, then exit.
-                            
+        -e|--check              Output LFS dependency version information, then exit.
+                                It is recommended that you run this before proceeding
+                                with the rest of the build.
+
+        -b|--build-all          Run the entire script from beginning to end.
+
+        -x|--extend             Pass in the path to a custom build extension. See the
+                                'example_extension' directory for reference.
+
+        -d|--download-packages  Download all packages into the 'packages' directory, then
+                                exit.
+
+        -i|--init               Create the .img file, partition it, setup basic directory
+                                structure, then exit.
+
         -p|--start-phase
-        -a|--start-package  Select a phase and optionally a package
-                            within that phase to start building from.
-                            These options are only available if the preceeding
-                            phases have been completed. They should really only
-                            be used when something broke during a build, and you
-                            don't want to start from the beginning again.
-                            
-        -o|--one-off        Only build the specified phase/package.
-        
-        -k|--kernel-config  Optional path to kernel config file to use during linux
-                            build.
-                            
+        -a|--start-package      Select a phase and optionally a package
+                                within that phase to start building from.
+                                These options are only available if the preceeding
+                                phases have been completed. They should really only
+                                be used when something broke during a build, and you
+                                don't want to start from the beginning again.
+
+        -o|--one-off            Only build the specified phase/package.
+
+        -k|--kernel-config      Optional path to kernel config file to use during linux
+                                build.
+
         -m|--mount
-        -u|--umount         These options will mount or unmount the disk image to the
-                            filesystem, and then exit the script immediately.
-                            You should be sure to unmount prior to running any part of
-                            the build, since the image will be automatically mounted
-                            and then unmounted at the end.
-                            
-        -n|--install        Specify the path to a block device on which to install the
-                            fully built img file.
-                            
-        -c|--clean          This will unmount and delete the image, and clear the
-                            logs.
-                            
-        -h|--help           Show this message.
+        -u|--umount             These options will mount or unmount the disk image to the
+                                filesystem, and then exit the script immediately.
+                                You should be sure to unmount prior to running any part of
+                                the build, since the image will be automatically mounted
+                                and then unmounted at the end.
+
+        -n|--install            Specify the path to a block device on which to install the
+                                fully built img file.
+
+        -c|--clean              This will unmount and delete the image, and clear the
+                                logs.
+
+        -h|--help               Show this message.
 ```
 
 ## How It Works
@@ -81,7 +79,7 @@ on the device you specify.
 The script builds LFS by completing the following steps:
 
 
-1. Download package source code and save to the `./pkgs/` directory.
+1. Download package source code and save to the `./packages/` directory.
 
 
 2. Create a 10 gigabyte IMG file called `lfs.img`. This will serve as a virtual hard drive on which to build LFS.
@@ -102,7 +100,7 @@ The script builds LFS by completing the following steps:
 7. Enter chroot environment, and build remaing tools needed to build the entire LFS system. (chapter 7)
 
 
-8. Build the entire LFS system from within chroot envirnment, including the kernel, GRUB, and others.
+8. Build the entire LFS system from within chroot envirnment, including the kernel, GRUB, and others. (chapter 8)
 
 
 That's it.
@@ -152,8 +150,8 @@ Finally, to clean your workspace:
 ```sh
 sudo ./mylfs.sh --clean
 ```
-This will unmount the IMG file (if it is mounted), delete it, and delete the logs under `./logs`. It will not delete the cached package archives under `./pkgs`, but if you really want to do that you can easily `rm -f ./pkgs/*`.  
+This will unmount the IMG file (if it is mounted), delete it, and delete the logs under `./logs/`. It will not delete the cached package archives under `./packages/`, but if you really want to do that you can easily `rm -f ./packages/*`.  
 
 
 ## Booting
-So far, I have only managed to boot the IMG file from a flash drive on bare metal. It would be cool to be able to just boot it up with a VM, but I have yet to figure out how to get that to work. Suggestions are welcome.
+So far, I have managed to boot the IMG file using QEMU (see the [runqemu.sh](runqemu.sh) script) and on bare metal using a flash drive. I have not been able to boot it up on a VM yet.

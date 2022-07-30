@@ -24,53 +24,53 @@ on the commandline. Be careful with that last one - it WILL destroy all partitio
 on the device you specify.
 
     options:
-        -v|--version        Print the LFS version this build is based on, then exit.
+        -v|--version            Print the LFS version this build is based on, then exit.
 
-        -V|--verbose        The script will output more information where applicable
-                            (careful what you wish for).
+        -V|--verbose            The script will output more information where applicable
+                                (careful what you wish for).
 
-        -e|--check          Output LFS dependency version information, then exit.
-                            It is recommended that you run this before proceeding
-                            with the rest of the build.
+        -e|--check              Output LFS dependency version information, then exit.
+                                It is recommended that you run this before proceeding
+                                with the rest of the build.
 
-        -b|--build-all      Run the entire script from beginning to end.
+        -b|--build-all          Run the entire script from beginning to end.
 
-        -x|--extend         Pass in the path to a custom build extension. See the
-                            'example_extension' directory for reference.
+        -x|--extend             Pass in the path to a custom build extension. See the
+                                'example_extension' directory for reference.
 
-        -d|--download-pkgs  Download all packages into the 'pkgs' directory, then
-                            exit.
+        -d|--download-packages  Download all packages into the 'packages' directory, then
+                                exit.
 
-        -i|--init           Create the .img file, partition it, setup basic directory
-                            structure, then exit.
+        -i|--init               Create the .img file, partition it, setup basic directory
+                                structure, then exit.
 
         -p|--start-phase
-        -a|--start-package  Select a phase and optionally a package
-                            within that phase to start building from.
-                            These options are only available if the preceeding
-                            phases have been completed. They should really only
-                            be used when something broke during a build, and you
-                            don't want to start from the beginning again.
+        -a|--start-package      Select a phase and optionally a package
+                                within that phase to start building from.
+                                These options are only available if the preceeding
+                                phases have been completed. They should really only
+                                be used when something broke during a build, and you
+                                don't want to start from the beginning again.
 
-        -o|--one-off        Only build the specified phase/package.
+        -o|--one-off            Only build the specified phase/package.
 
-        -k|--kernel-config  Optional path to kernel config file to use during linux
-                            build.
+        -k|--kernel-config      Optional path to kernel config file to use during linux
+                                build.
 
         -m|--mount
-        -u|--umount         These options will mount or unmount the disk image to the
-                            filesystem, and then exit the script immediately.
-                            You should be sure to unmount prior to running any part of
-                            the build, since the image will be automatically mounted
-                            and then unmounted at the end.
+        -u|--umount             These options will mount or unmount the disk image to the
+                                filesystem, and then exit the script immediately.
+                                You should be sure to unmount prior to running any part of
+                                the build, since the image will be automatically mounted
+                                and then unmounted at the end.
 
-        -n|--install        Specify the path to a block device on which to install the
-                            fully built img file.
+        -n|--install            Specify the path to a block device on which to install the
+                                fully built img file.
 
-        -c|--clean          This will unmount and delete the image, and clear the
-                            logs.
+        -c|--clean              This will unmount and delete the image, and clear the
+                                logs.
 
-        -h|--help           Show this message.
+        -h|--help               Show this message.
 EOF
 }
 
@@ -250,7 +250,7 @@ function init_image {
     mkdir -p $LFS/home/tester
     chown 101:101 $LFS/home/tester
     mkdir -p $LFS/sources
-    cp ./pkgs/* $LFS/sources
+    cp ./packages/* $LFS/sources
 
     # create symlinks
     for i in bin lib sbin
@@ -311,13 +311,13 @@ function cleanup_cancelled_download {
     [ -f $PKG ] && rm -f $PKG
 }
 
-function download_pkgs {
+function download_packages {
     if [ -n "$1" ]
     then
         # if an extension is being built, it will
-        # override the pkgs and pkgs.sh paths
-        local PACKAGE_DIR=$1/pkgs
-        local PACKAGE_LIST=$1/pkgs.sh
+        # override the packages and packages.sh paths
+        local PACKAGE_DIR=$1/packages
+        local PACKAGE_LIST=$1/packages.sh
     fi
 
     mkdir -p $PACKAGE_DIR
@@ -564,9 +564,9 @@ function build_extension {
     then
         echo "ERROR: extension '$EXTENSION' is not a directory, or does not exist."
         return 1
-    elif [ ! -f "$EXTENSION/pkgs.sh" ]
+    elif [ ! -f "$EXTENSION/packages.sh" ]
     then
-        echo "ERROR: extension '$EXTENSION' is missing a 'pkgs.sh' file."
+        echo "ERROR: extension '$EXTENSION' is missing a 'packages.sh' file."
         return 1
     elif [ ! -f "$EXTENSION/build_order.txt" ]
     then
@@ -574,21 +574,21 @@ function build_extension {
         return 1
     fi
 
-    mkdir -p $EXTENSION/{logs,pkgs}
+    mkdir -p $EXTENSION/{logs,packages}
 
     # read in extension config.sh if present
     [ -f "$EXTENSION/config.sh" ] && source "$EXTENSION/config.sh"
 
-    # read pkgs.sh
-    source "$EXTENSION/pkgs.sh"
+    # read packages.sh
+    source "$EXTENSION/packages.sh"
 
     # download extension packages
-    download_pkgs $EXTENSION
+    download_packages $EXTENSION
 
     $VERBOSE && set -x
 
     # copy packages onto LFS image
-    cp -f $EXTENSION/pkgs/* $LFS/sources/
+    cp -f $EXTENSION/packages/* $LFS/sources/
 
     # install static files if present
     if [ -d "$EXTENSION/static" ]
@@ -746,7 +746,7 @@ cd $(dirname $0)
 source ./config.sh
 
 # import package list
-source ./pkgs.sh
+source ./packages.sh
 
 
 VERBOSE=false
@@ -784,7 +784,7 @@ while [ $# -gt 0 ]; do
       shift
       shift
       ;;
-    -d|--download-pkgs)
+    -d|--download-packages)
       DOWNLOAD=true
       shift
       ;;
@@ -913,8 +913,8 @@ fi
 
 # Perform single operations
 $CHECKDEPS && check_dependencies && exit
-$DOWNLOAD && download_pkgs && exit
-$INIT && download_pkgs && init_image && unmount_image && exit
+$DOWNLOAD && download_packages && exit
+$INIT && download_packages && init_image && unmount_image && exit
 $MOUNT && mount_image && exit
 $UNMOUNT && unmount_image && exit
 $CLEAN && clean_image && exit
@@ -922,11 +922,11 @@ $CLEAN && clean_image && exit
 
 if [ -n "$STARTPHASE" ]
 then
-    download_pkgs
+    download_packages
     mount_image
 elif $BUILDALL
 then
-    download_pkgs
+    download_packages
     init_image
 else
     usage
