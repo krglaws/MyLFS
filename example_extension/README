@@ -38,11 +38,12 @@ How to create an extension:
 
 
 - Once you have established the list of package URLs inside of packages.sh,
-  you can add the build scripts for each respective package.
+  you can add the build scripts for each respective package under a "scripts"
+  directory.
 
     For example:
-      my_extension/lynx.sh     -> builds PKG_LYNX
-      my_extension/makeca.sh   -> builds PKG_MAKECA
+      my_extension/scripts/lynx.sh     -> builds PKG_LYNX
+      my_extension/scripts/makeca.sh   -> builds PKG_MAKECA
 
     The script names should be the same as the package names, but lower
     case and without the "PKG_" prefix, e.g. "lynx.sh" and "PKG_LYNX".

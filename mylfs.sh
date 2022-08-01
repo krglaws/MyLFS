@@ -398,8 +398,7 @@ function unmount_image {
     $VERBOSE && set -x
 
     # unmount everything
-    local GREP_FOR=$({ [ -n "$INSTALL_TGT" ] && echo "$LFS\|$INSTALL_MOUNT"; } || echo "$LFS")
-    local MOUNTED_LOCS=$(mount | grep $GREP_FOR)
+    local MOUNTED_LOCS=$(mount | grep "$LFS\|$INSTALL_MOUNT")
     if [ -n "$MOUNTED_LOCS" ];
     then
         echo "$MOUNTED_LOCS" | cut -d" " -f3 | tac | xargs umount
@@ -425,7 +424,7 @@ function build_package {
     PKG_NAME=$(basename ${!PKG_NAME})
 
     local LOG_FILE=$([ $PHASE -eq 5 ] && echo "$EXTENSION/logs/${NAME}.log" || echo "$LOG_DIR/${NAME}_phase${PHASE}.log")
-    local SCRIPT_PATH=$([ $PHASE -eq 5 ] && echo $EXTENSION/${NAME}.sh || echo ./phase${PHASE}/${NAME}.sh)
+    local SCRIPT_PATH=$([ $PHASE -eq 5 ] && echo $EXTENSION/scripts/${NAME}.sh || echo ./phase${PHASE}/${NAME}.sh)
 
     local BUILD_INSTR="
         set -ex
@@ -572,6 +571,10 @@ function build_extension {
     then
         echo "ERROR: extension '$EXTENSION' is missing a 'build_order.txt' file."
         return 1
+    elif [ ! -d "$EXTENSION/scripts/" ]
+    then
+        echo "ERROR: extension '$EXTENSION' is missing a 'scripts' directory."
+        return 1
     fi
 
     mkdir -p $EXTENSION/{logs,packages}
@@ -579,7 +582,7 @@ function build_extension {
     # read in extension config.sh if present
     [ -f "$EXTENSION/config.sh" ] && source "$EXTENSION/config.sh"
 
-    # read packages.sh
+    # read packages.sh (so the extension scripts can see them)
     source "$EXTENSION/packages.sh"
 
     # download extension packages
@@ -736,6 +739,73 @@ function clean_image {
 }
 
 
+function main {
+    # Perform single operations
+    $CHECKDEPS && check_dependencies && exit
+    $DOWNLOAD && download_packages && exit
+    $INIT && download_packages && init_image && unmount_image && exit
+    $MOUNT && mount_image && exit
+    $UNMOUNT && unmount_image && exit
+    $CLEAN && clean_image && exit
+    [ -n "$INSTALL_TGT" ] && install_image && exit
+
+    if [ -n "$STARTPHASE" ]
+    then
+        download_packages
+        mount_image
+    elif $BUILDALL
+    then
+        download_packages
+        init_image
+    else
+        usage
+        exit
+    fi
+
+    PATH=$LFS/tools/bin:$PATH
+    CONFIG_SITE=$LFS/usr/share/config.site
+    LC_ALL=POSIX
+    export LC_ALL PATH CONFIG_SITE
+
+    trap "echo 'build cancelled.' && cd $FULLPATH && unmount_image && exit" SIGINT
+    trap "echo 'build failed.' && cd $FULLPATH && unmount_image && exit 1" ERR
+
+    build_phase 1 || { unmount_image && exit; }
+
+    $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
+
+    build_phase 2 || { unmount_image && exit; }
+
+    $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
+
+    build_phase 3 || { unmount_image && exit; }
+
+    # phase 3 cleanup
+    rm -rf $LFS/usr/share/{info,man,doc}/*
+    find $LFS/usr/{lib,libexec} -name \*.la -delete
+    rm -rf $LFS/tools
+
+    $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
+
+    build_phase 4 || { unmount_image && exit; }
+
+    $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
+
+    [ -n "$EXTENSION" ] && { build_extension || { unmount_image && exit; }; }
+
+    rm -rf $LFS/tmp/*
+    find $LFS/usr/lib $LFS/usr/libexec -name \*.la -delete
+    find $LFS/usr -depth -name $LFS_TGT\* | xargs rm -rf
+    rm -rf $LFS/home/tester
+    sed -i 's/^.*tester.*$//' $LFS/etc/{passwd,group}
+
+    # unmount and detatch image
+    unmount_image
+
+    echo "build successful."
+}
+
+
 # ###############
 # Parse arguments
 # ~~~~~~~~~~~~~~~
@@ -744,6 +814,7 @@ cd $(dirname $0)
 
 # import config vars
 source ./config.sh
+echo "LFS=$LFS"
 
 # import package list
 source ./packages.sh
@@ -906,72 +977,7 @@ then
     EXTENSION="$(cd $(dirname $EXTENSION) && pwd)/$(basename $EXTENSION)"
 fi
 
-
 # ###########
 # Start build
 # ~~~~~~~~~~~
-
-# Perform single operations
-$CHECKDEPS && check_dependencies && exit
-$DOWNLOAD && download_packages && exit
-$INIT && download_packages && init_image && unmount_image && exit
-$MOUNT && mount_image && exit
-$UNMOUNT && unmount_image && exit
-$CLEAN && clean_image && exit
-[ -n "$INSTALL_TGT" ] && install_image && exit
-
-if [ -n "$STARTPHASE" ]
-then
-    download_packages
-    mount_image
-elif $BUILDALL
-then
-    download_packages
-    init_image
-else
-    usage
-    exit
-fi
-
-PATH=$LFS/tools/bin:$PATH
-CONFIG_SITE=$LFS/usr/share/config.site
-LC_ALL=POSIX
-export LC_ALL PATH CONFIG_SITE
-
-trap "echo 'build cancelled.' && cd $FULLPATH && unmount_image && exit" SIGINT
-trap "echo 'build failed.' && cd $FULLPATH && unmount_image && exit 1" ERR
-
-build_phase 1
-
-$ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
-
-build_phase 2
-
-$ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
-
-build_phase 3
-
-# phase 3 cleanup
-rm -rf $LFS/usr/share/{info,man,doc}/*
-find $LFS/usr/{lib,libexec} -name \*.la -delete
-rm -rf $LFS/tools
-
-$ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
-
-build_phase 4
-
-$ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
-
-[ -n "$EXTENSION" ] && build_extension
-
-# final cleanup
-rm -rf $LFS/tmp/*
-find $LFS/usr/lib $LFS/usr/libexec -name \*.la -delete
-find $LFS/usr -depth -name $LFS_TGT\* | xargs rm -rf
-rm -rf $LFS/home/tester
-sed -i 's/^.*tester.*$//' $LFS/etc/{passwd,group}
-
-# unmount and detatch image
-unmount_image
-
-echo "build successful."
+main
