@@ -586,7 +586,11 @@ function build_extension {
     source "$EXTENSION/packages.sh"
 
     # download extension packages
+    # when download_packages fails, it calls 'exit'.
+    # need to make sure image is unmounted if that happens.
+    trap 'unmount_image; exit' EXIT
     download_packages $EXTENSION
+    trap - EXIT
 
     $VERBOSE && set -x
 
@@ -732,9 +736,9 @@ function clean_image {
     fi
 
     # delete logs
-    if [ -n "$(ls ./logs)" ]
+    if [ -d $LOG_DIR ] && [ -n "$(ls $LOG_DIR)" ]
     then
-        rm -rf ./logs/*
+        rm $LOG_DIR/*
     fi
 }
 
@@ -781,9 +785,12 @@ function main {
     build_phase 3 || { unmount_image && exit; }
 
     # phase 3 cleanup
-    rm -rf $LFS/usr/share/{info,man,doc}/*
-    find $LFS/usr/{lib,libexec} -name \*.la -delete
-    rm -rf $LFS/tools
+    if $BUILDALL || [ "$STARTPHASE" -le "3" ]
+    then
+        rm -rf $LFS/usr/share/{info,man,doc}/*
+        find $LFS/usr/{lib,libexec} -name \*.la -delete
+        rm -rf $LFS/tools
+    fi
 
     $ONEOFF && $FOUNDSTARTPHASE && unmount_image && exit
 
@@ -814,7 +821,6 @@ cd $(dirname $0)
 
 # import config vars
 source ./config.sh
-echo "LFS=$LFS"
 
 # import package list
 source ./packages.sh
