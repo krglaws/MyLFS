@@ -9,7 +9,7 @@ If you don't know what this is, or haven't built Linux From Scratch on your own 
 Basically, just run `sudo ./mylfs.sh --build-all` and then stare at your terminal for several hours. Maybe meditate on life or something while you wait. Or maybe clean your room or do your dishes finally. I don't know. Do whatever you want. Maybe by the end of the script, you'll realize why you love linux so much: you love it because it is *hard*. Just like going to the moon, god dammit.
 
 ```
-$ sudo ./build.sh --help
+$ sudo ./mylfs.sh --help
 
     WARNING: Most of the functionality in this script requires root privilages,
 and involves the partitioning, mounting and unmounting of device files. Use at
