@@ -11,6 +11,8 @@ Basically, just run `sudo ./mylfs.sh --build-all` and then stare at your termina
 ```
 $ sudo ./mylfs.sh --help
 
+Welcome to MyLFS.
+
     WARNING: Most of the functionality in this script requires root privilages,
 and involves the partitioning, mounting and unmounting of device files. Use at
 your own risk.
