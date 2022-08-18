@@ -1,6 +1,7 @@
 # build_order.txt
 # <scriptname> (without .sh)
 
+libtasn1
 makeca_install MAKECA
 p11kit
 makeca_certs MAKECA
