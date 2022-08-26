@@ -208,7 +208,6 @@ function init_image {
     # reattach loop device to re-read partition table
     losetup -d $LOOP
     losetup -P $LOOP $LFS_IMG
-    sync
 
     # exporting for grub.cfg
     export LFSPARTUUID="$(lsblk -o PARTUUID $LOOP_P1 | tail -1)"
@@ -419,19 +418,29 @@ function build_package {
     local NAME_OVERRIDE=$2
 
     { $VERBOSE && echo "Building $NAME phase $PHASE..."; } || echo -n "Building $NAME phase $PHASE... "
-
     local PKG_NAME=PKG_$([ -n "$NAME_OVERRIDE" ] && echo $NAME_OVERRIDE || echo $NAME | tr a-z A-Z)
-    PKG_NAME=$(basename ${!PKG_NAME})
 
     local LOG_FILE=$([ $PHASE -eq 5 ] && echo "$EXTENSION/logs/${NAME}.log" || echo "$LOG_DIR/${NAME}_phase${PHASE}.log")
     local SCRIPT_PATH=$([ $PHASE -eq 5 ] && echo $EXTENSION/scripts/${NAME}.sh || echo ./phase${PHASE}/${NAME}.sh)
+
+    if [ "$NAME_OVERRIDE" == "_" ]
+    then
+        local TARCMD=""
+    else
+        if [ -z "${!PKG_NAME}" ]
+        then
+            echo "ERROR: $NAME: package not found"
+            return 1
+        fi
+        local TARCMD="tar -xf $(basename ${!PKG_NAME}) -C $NAME --strip-components=1"
+    fi
 
     local BUILD_INSTR="
         set -ex
         pushd sources > /dev/null
         rm -rf $NAME
         mkdir $NAME
-        tar -xf $PKG_NAME -C $NAME --strip-components=1
+        $TARCMD
         cd $NAME
         $(cat $SCRIPT_PATH)
         popd
@@ -669,7 +678,6 @@ function install_image {
         echo "ERROR: failed to format $INSTALL_TGT. Consider manually clearing $INSTALL_TGT's parition table."
         exit
     fi
-    partprobe $INSTALL_TGT
 
     trap "echo 'install failed.' && unmount_image && exit 1" ERR
 
