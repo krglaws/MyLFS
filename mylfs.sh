@@ -108,10 +108,10 @@ function check_dependencies {
     check_dependency diff        2.8.1
     check_dependency find        4.2.31
     check_dependency gawk        4.0.1
-    check_dependency gcc         4.8 11.2.0
-    check_dependency g++         4.8 11.2.0
+    check_dependency gcc         4.8 12.2.0
+    check_dependency g++         4.8 12.2.0
     check_dependency grep        2.5.1a
-    check_dependency gzip        1.3.1
+    check_dependency gzip        1.3.12
     check_dependency m4          1.4.10
     check_dependency make        4.0
     check_dependency patch       2.5.4
@@ -126,13 +126,13 @@ function check_dependencies {
     # check that yacc is a link to bison
     if [ ! -h /usr/bin/yacc -a "$(readlink -f /usr/bin/yacc)"="/usr/bin/bison.yacc" ]
     then
-        echo "ERROR: /usr/bin/yacc needs to be a link to /usr/bin/bison.yacc"
+        echo "WARNING: /usr/bin/yacc should be a link to bison, or a script that executes bison"
     fi
 
     # check that awk is a link to gawk
     if [ ! -h /usr/bin/awk -a "$(readlink -f /usr/bin/awk)"="/usr/bin/gawk" ]
     then
-        echo "ERROR: /usr/bin/awk needs to be a link to /usr/bin/gawk"
+        echo "WARNING: /usr/bin/awk should be a link to /usr/bin/gawk"
     fi
 
     # check G++ compilation
