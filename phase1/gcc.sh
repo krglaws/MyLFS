@@ -24,11 +24,10 @@ cd build
 ../configure                                       \
     --target=$LFS_TGT                              \
     --prefix=$LFS/tools                            \
-    --with-glibc-version=2.35                      \
+    --with-glibc-version=2.36                      \
     --with-sysroot=$LFS                            \
     --with-newlib                                  \
     --without-headers                              \
-    --enable-initfini-array                        \
     --disable-nls                                  \
     --disable-shared                               \
     --disable-multilib                             \

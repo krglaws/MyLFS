@@ -2,7 +2,6 @@
 make mrproper
 make headers
 
-find usr/include -name '.*' -delete
-rm usr/include/Makefile
+find usr/include -type f ! -name '*.h' -delete
 cp -r usr/include $LFS/usr
 
