@@ -1,13 +1,16 @@
 # Binutils Phase 4
-patch -Np1 -i ../$(basename $PATCH_BINUTILS)
-
-sed -e '/R_386_TLS_LE /i \   || (TYPE) == R_386_TLS_IE \\' \
-    -i ./bfd/elfxx-x86.h
+EXPECTOUT=$(expect -c 'spawn ls')
+if [ "$EXPECTOUT" != "$(echo -ne 'spawn ls\r\n')" ]
+then
+    echo $EXPECTOUT
+    exit 1
+fi
 
 mkdir build
 cd build
 
 ../configure --prefix=/usr       \
+             --sysconfdir=/etc   \
              --enable-gold       \
              --enable-ld=default \
              --enable-plugins    \

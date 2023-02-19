@@ -1,8 +1,7 @@
 # Coreutils Phase 4
 patch -Np1 -i ../$(basename $PATCH_COREUTILS)
-patch -Np1 -i ../$(basename $PATCH_COREUTILS_CHMOD)
 
-autoreconf -fi
+autoreconf -fiv
 FORCE_UNSAFE_CONFIGURE=1 ./configure \
             --prefix=/usr            \
             --enable-no-install-program=kill,uptime

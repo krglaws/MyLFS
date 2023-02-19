@@ -233,7 +233,7 @@ function init_image {
 
     mkdir -p $LFS/{boot,dev,etc,home,lib64,media,mnt,opt,proc,run,srv,sys,tools,usr,var}
     mkdir -p $LFS/boot/grub
-    mkdir -p $LFS/etc/{modprobe.d,opt,sysconfig}
+    mkdir -p $LFS/etc/{modprobe.d,opt,sysconfig,ld.so.conf.d}
     mkdir -p $LFS/media/{cdrom,floppy}
     mkdir -p $LFS/usr/{bin,lib/{,firmware},sbin}
     mkdir -p $LFS/usr/local/{bin,include,lib,sbin,share,src}

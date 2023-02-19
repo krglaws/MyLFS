@@ -1,7 +1,7 @@
 # Expat Phase 4
 ./configure --prefix=/usr    \
             --disable-static \
-            --docdir=/usr/share/doc/expat-2.4.6
+            --docdir=/usr/share/doc/expat-2.5.0
 
 make
 
@@ -14,5 +14,5 @@ fi
 
 make install
 
-install -m644 doc/*.{html,css} /usr/share/doc/expat-2.4.6
+install -m644 doc/*.{html,css} /usr/share/doc/expat-2.5.0
 

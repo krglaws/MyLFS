@@ -15,5 +15,4 @@ fi
 
 make install
 
-ln -sv ../vim/vim82/doc /usr/share/doc/vim-8.2.4383
-
+ln -sv ../vim/vim90/doc /usr/share/doc/vim-9.0.0228

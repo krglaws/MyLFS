@@ -3,8 +3,7 @@ tar -xf ../$(basename $PKG_TCLDOCS) --strip-components=1
 SRCDIR=$(pwd)
 cd unix
 ./configure --prefix=/usr           \
-            --mandir=/usr/share/man \
-            $([ "$(uname -m)" = x86_64 ] && echo --enable-64bit)
+            --mandir=/usr/share/man
 
 make
 

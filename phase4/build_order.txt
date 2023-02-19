@@ -46,6 +46,7 @@ kmod
 elfutils
 libffi
 python
+wheel
 ninja
 meson
 coreutils

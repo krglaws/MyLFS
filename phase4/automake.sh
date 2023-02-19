@@ -6,7 +6,7 @@ make
 if $RUN_TESTS
 then
     set +e
-    make check
+    make -j4 check
     set -e
 fi
 

@@ -1,7 +1,4 @@
 # GCC Phase 4
-sed -e '/static.*SIGSTKSZ/d' \
-    -e 's/return kAltStackSize/return SIGSTKSZ * 4/' \
-    -i libsanitizer/sanitizer_common/sanitizer_posix_libcdep.cpp
 
 case $(uname -m) in
   x86_64)
@@ -27,21 +24,20 @@ ulimit -s 32768
 if $RUN_TESTS
 then
     set +e
-    chown -R tester .
+    chown -Rv tester .
     su tester -c "PATH=$PATH make -k check"
     ../contrib/test_summary
     set -e
 fi
 
 make install
-rm -rf /usr/lib/gcc/$(gcc -dumpmachine)/11.2.0/include-fixed/bits/
 
 chown -R root:root \
-    /usr/lib/gcc/*linux-gnu/11.2.0/include{,-fixed}
+    /usr/lib/gcc/*linux-gnu/12.2.0/include{,-fixed}
 
 ln -sr /usr/bin/cpp /usr/lib
 
-ln -sf ../../libexec/gcc/$(gcc -dumpmachine)/11.2.0/liblto_plugin.so \
+ln -sf ../../libexec/gcc/$(gcc -dumpmachine)/12.2.0/liblto_plugin.so \
         /usr/lib/bfd-plugins/
 
 mkdir -p /usr/share/gdb/auto-load/usr/lib

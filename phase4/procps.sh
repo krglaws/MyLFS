@@ -1,6 +1,6 @@
 # Procps-ng Phase 4
 ./configure --prefix=/usr                            \
-            --docdir=/usr/share/doc/procps-ng-3.3.17 \
+            --docdir=/usr/share/doc/procps-ng-4.0.0  \
             --disable-static                         \
             --disable-kill
 
