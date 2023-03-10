@@ -21,7 +21,7 @@ mail:x:34:
 kvm:x:61:
 uuidd:x:80:
 wheel:x:97:
-nogroup:x:99:
-users:x:999:
 tester:x:101:
+users:x:999:
+nogroup:x:65534:
 

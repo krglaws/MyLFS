@@ -11,6 +11,12 @@ make install
 
 install -dm755 /usr/share/doc/python-3.10.6/html
 
+cat > /etc/pip.conf << EOF
+[global]
+root-user-action = ignore
+disable-pip-version-check = true
+EOF
+
 tar --strip-components=1  \
     --no-same-owner       \
     --no-same-permissions \
