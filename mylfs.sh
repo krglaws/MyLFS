@@ -538,7 +538,7 @@ function build_phase {
     # make sure ./logs/ dir exists
     mkdir -p $LOG_DIR
 
-    local PKG_LIST=$(grep -Ev '^[#]|^$' $PHASE_DIR/build_order.txt)
+    local PKG_LIST=$(grep -Ev '^[#]|^$|^ *$' $PHASE_DIR/build_order.txt)
     local PKG_COUNT=$(echo "$PKG_LIST" | wc -l)
     mapfile -t BUILD_ORDER <<< $(echo "$PKG_LIST")
 
