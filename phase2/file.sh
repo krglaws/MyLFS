@@ -12,3 +12,5 @@ popd
 make FILE_COMPILE=$(pwd)/build/src/file
 make DESTDIR=$LFS install
 
+rm $LFS/usr/lib/libmagic.la
+

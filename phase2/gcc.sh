@@ -18,17 +18,18 @@ case $(uname -m) in
   ;;
 esac
 
+sed '/thread_header =/s/@.*@/gthr-posix.h/' \
+    -i libgcc/Makefile.in libstdc++-v3/include/Makefile.in
+
 mkdir build
 cd build
-
-mkdir -p $LFS_TGT/libgcc
-ln -s ../../../libgcc/gthr-posix.h $LFS_TGT/libgcc/gthr-default.h
 
 ../configure                                       \
     --build=$(../config.guess)                     \
     --host=$LFS_TGT                                \
+    --target=$LFS_TGT                              \
+    LDFLAGS_FOR_TARGET=-L$PWD/$LFS_TGT/libgcc      \
     --prefix=/usr                                  \
-    CC_FOR_TARGET=$LFS_TGT-gcc                     \
     --with-build-sysroot=$LFS                      \
     --enable-initfini-array                        \
     --disable-nls                                  \
@@ -39,7 +40,6 @@ ln -s ../../../libgcc/gthr-posix.h $LFS_TGT/libgcc/gthr-default.h
     --disable-libquadmath                          \
     --disable-libssp                               \
     --disable-libvtv                               \
-    --disable-libstdcxx                            \
     --enable-languages=c,c++
 
 make

@@ -108,10 +108,10 @@ function check_dependencies {
     check_dependency diff        2.8.1
     check_dependency find        4.2.31
     check_dependency gawk        4.0.1
-    check_dependency gcc         4.8 11.2.0
-    check_dependency g++         4.8 11.2.0
+    check_dependency gcc         4.8 12.2.0
+    check_dependency g++         4.8 12.2.0
     check_dependency grep        2.5.1a
-    check_dependency gzip        1.3.1
+    check_dependency gzip        1.3.12
     check_dependency m4          1.4.10
     check_dependency make        4.0
     check_dependency patch       2.5.4
@@ -126,13 +126,13 @@ function check_dependencies {
     # check that yacc is a link to bison
     if [ ! -h /usr/bin/yacc -a "$(readlink -f /usr/bin/yacc)"="/usr/bin/bison.yacc" ]
     then
-        echo "ERROR: /usr/bin/yacc needs to be a link to /usr/bin/bison.yacc"
+        echo "WARNING: /usr/bin/yacc should be a link to bison, or a script that executes bison"
     fi
 
     # check that awk is a link to gawk
     if [ ! -h /usr/bin/awk -a "$(readlink -f /usr/bin/awk)"="/usr/bin/gawk" ]
     then
-        echo "ERROR: /usr/bin/awk needs to be a link to /usr/bin/gawk"
+        echo "WARNING: /usr/bin/awk should be a link to /usr/bin/gawk"
     fi
 
     # check G++ compilation
@@ -231,34 +231,54 @@ function init_image {
 
     echo -n "Creating basic directory layout... "
 
-    mkdir -p $LFS/{boot,dev,etc,home,lib64,media,mnt,opt,proc,run,srv,sys,tools,usr,var}
-    mkdir -p $LFS/boot/grub
-    mkdir -p $LFS/etc/{modprobe.d,opt,sysconfig}
-    mkdir -p $LFS/media/{cdrom,floppy}
-    mkdir -p $LFS/usr/{bin,lib/{,firmware},sbin}
-    mkdir -p $LFS/usr/local/{bin,include,lib,sbin,share,src}
-    mkdir -p $LFS/usr/local/share/{color,dict,doc,info,locale,man,misc,terminfo,zoneinfo}
-    mkdir -p $LFS/usr/local/share/man/{1..8}
-    mkdir -p $LFS/var/{cache,lib,local,log,mail,opt,spool}
-    mkdir -p $LFS/var/lib/{color,misc,locate}
+    # LFS 11.2 Section 4.2
+    mkdir -p $LFS/{etc,var}
+    mkdir -p $LFS/usr/{bin,lib,sbin}
+    for i in bin lib sbin
+    do
+        ln -s usr/$i $LFS/$i
+    done
+    case $(uname -m) in
+        x86_64) mkdir -p $LFS/lib64 ;;
+    esac
+    mkdir -p $LFS/tools
 
+    # LFS 11.2 Section 7.3
+    mkdir -p $LFS/{dev,proc,sys,run}
+
+    # LFS 11.2 Section 7.5
+    mkdir -p $LFS/{boot,home,mnt,opt,srv}
+    mkdir -p $LFS/etc/{opt,sysconfig}
+    mkdir -p $LFS/lib/firmware
+    mkdir -p $LFS/media/{floppy,cdrom}
+    mkdir -p $LFS/usr/{,local/}{include,src}
+    mkdir -p $LFS/usr/local/{bin,lib,sbin}
+    mkdir -p $LFS/usr/{,local/}share/{color,dict,doc,info,locale,man}
+    mkdir -p $LFS/usr/{,local/}share/{misc,terminfo,zoneinfo}
+    mkdir -p $LFS/usr/{,local/}share/man/man{1..8}
+    mkdir -p $LFS/var/{cache,local,log,mail,opt,spool}
+    mkdir -p $LFS/var/lib/{color,misc,locate}
+    ln -sf /run $LFS/var/run
+    ln -sf /run/lock $LFS/var/lock
     install -d -m 0750 $LFS/root
     install -d -m 1777 $LFS/tmp $LFS/var/tmp
+
+    # LFS 11.2 Section 7.6
+    ln -s /proc/self/mounts $LFS/etc/mtab
+    touch $LFS/var/log/{btmp,lastlog,faillog,wtmp}
+    chgrp 13 $LFS/var/log/lastlog # 13 == utmp
+    chmod 664 $LFS/var/log/lastlog
+    chmod 600 $LFS/var/log/btmp
+
+    # in no particular part of the book, but still needed
+    mkdir -p $LFS/boot/grub
+    mkdir -p $LFS/etc/{modprobe.d,ld.so.conf.d}
 
     # removed at end of build
     mkdir -p $LFS/home/tester
     chown 101:101 $LFS/home/tester
     mkdir -p $LFS/sources
     cp ./packages/* $LFS/sources
-
-    # create symlinks
-    for i in bin lib sbin
-    do
-        ln -s usr/$i $LFS/$i
-    done
-    ln -s /run $LFS/var/run
-    ln -s /run/lock $LFS/var/lock
-    ln -s /proc/self/mounts $LFS/etc/mtab
 
     # install static files
     echo $LFSHOSTNAME > $LFS/etc/hostname
@@ -280,12 +300,6 @@ function init_image {
     # make special device files
     mknod -m 600 $LFS/dev/console c 5 1
     mknod -m 666 $LFS/dev/null c 1 3
-
-    # create login log files
-    touch $LFS/var/log/{btmp,lastlog,faillog,wtmp}
-    chgrp 13 $LFS/var/log/lastlog
-    chmod 664  $LFS/var/log/lastlog
-    chmod 600  $LFS/var/log/btmp
 
     # mount stuff from the host onto the target disk
     mount --bind /dev $LFS/dev
@@ -524,7 +538,7 @@ function build_phase {
     # make sure ./logs/ dir exists
     mkdir -p $LOG_DIR
 
-    local PKG_LIST=$(grep -Ev '^[#]|^$' $PHASE_DIR/build_order.txt)
+    local PKG_LIST=$(grep -Ev '^[#]|^$|^ *$' $PHASE_DIR/build_order.txt)
     local PKG_COUNT=$(echo "$PKG_LIST" | wc -l)
     mapfile -t BUILD_ORDER <<< $(echo "$PKG_LIST")
 

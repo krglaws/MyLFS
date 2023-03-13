@@ -6,11 +6,11 @@
 
 make
 
-chown -R tester .
 
 if $RUN_TESTS
 then
     set +e
+chown -R tester .
 su -s /usr/bin/expect tester << EOF
 set timeout -1
 spawn make tests

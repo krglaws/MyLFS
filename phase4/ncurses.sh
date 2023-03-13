@@ -4,6 +4,7 @@
             --with-shared           \
             --without-debug         \
             --without-normal        \
+            --with-cxx-shared       \
             --enable-pc-files       \
             --enable-widec          \
             --with-pkg-config-libdir=/usr/lib/pkgconfig
@@ -12,8 +13,8 @@ make
 
 make DESTDIR=$PWD/dest install
 install -m755 dest/usr/lib/libncursesw.so.6.3 /usr/lib
-rm dest/usr/lib/{libncursesw.so.6.3,libncurses++w.a}
-cp -a dest/* /
+rm dest/usr/lib/libncursesw.so.6.3
+cp -av dest/* /
 
 for lib in ncurses form panel menu ; do
     rm -f                    /usr/lib/lib${lib}.so

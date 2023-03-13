@@ -1,4 +1,3 @@
-libstdcpp GCC
 gettext
 bison
 perl

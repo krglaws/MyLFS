@@ -1,5 +1,7 @@
 # Zstd Phase 4
-make
+patch -Np1 -i ../$(basename $PATCH_ZSTD)
+
+make prefix=/usr
 
 if $RUN_TESTS
 then
@@ -8,6 +10,6 @@ then
     set -e
 fi
 
-make PREFIX=/usr install
+make prefix=/usr install
 rm /usr/lib/libzstd.a
 

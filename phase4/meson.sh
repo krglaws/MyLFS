@@ -1,8 +1,7 @@
 # Meson Phase 4
-python3 setup.py build
+pip3 wheel -w dist --no-build-isolation --no-deps $PWD
 
-python3 setup.py install --root=dest
-cp -r dest/* /
+pip3 install --no-index --find-links dist meson
 install -Dm644 data/shell-completions/bash/meson /usr/share/bash-completion/completions/meson
 install -Dm644 data/shell-completions/zsh/_meson /usr/share/zsh/site-functions/_meson
 
