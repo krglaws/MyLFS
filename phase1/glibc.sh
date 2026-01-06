@@ -20,7 +20,8 @@ echo "rootsbindir=/usr/sbin" > configparms
       --prefix=/usr                      \
       --host=$LFS_TGT                    \
       --build=$(../scripts/config.guess) \
-      --enable-kernel=3.2                \
+      --disable-nscd                     \
+      --enable-kernel=5.4                \
       --with-headers=$LFS/usr/include    \
       libc_cv_slibdir=/usr/lib
 
@@ -29,5 +30,5 @@ make DESTDIR=$LFS install
 
 sed '/RTLDLIST=/s@/usr@@g' -i $LFS/usr/bin/ldd
 
-$LFS/tools/libexec/gcc/$LFS_TGT/12.2.0/install-tools/mkheaders
+#$LFS/tools/libexec/gcc/$LFS_TGT/12.2.0/install-tools/mkheaders
 
