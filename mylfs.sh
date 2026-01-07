@@ -209,6 +209,8 @@ function init_image {
 
     # reattach loop device to re-read partition table
     losetup -d $LOOP
+    # wait a couple seconds otherwise it doesn't work
+    sleep 2
     losetup -P $LOOP $LFS_IMG
 
     # exporting for grub.cfg
@@ -416,10 +418,11 @@ function unmount_image {
     local MOUNTED_LOCS=$(mount | grep "$LFS\|$INSTALL_MOUNT")
     if [ -n "$MOUNTED_LOCS" ];
     then
+        sleep 2
         echo "$MOUNTED_LOCS" | cut -d" " -f3 | tac | xargs umount
     fi
 
-    # detatch loop device
+    # detach loop device
     local ATTACHED_LOOP=$(losetup | grep $LFS_IMG)
     if [ -n "$ATTACHED_LOOP" ]
     then
