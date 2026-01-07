@@ -2,8 +2,9 @@
 ./configure ADJTIME_PATH=/var/lib/hwclock/adjtime   \
             --bindir=/usr/bin    \
             --libdir=/usr/lib    \
+            --runstatedir=/run   \
             --sbindir=/usr/sbin  \
-            --docdir=/usr/share/doc/util-linux-2.38.1 \
+            --docdir=/usr/share/doc/util-linux-2.41.1 \
             --disable-chfn-chsh  \
             --disable-login      \
             --disable-nologin    \
@@ -13,14 +14,13 @@
             --disable-pylibmount \
             --disable-static     \
             --without-python     \
-            --without-systemd    \
-            --without-systemdsystemunitdir
 
 make
 
 if $RUN_TESTS
 then
     set +e
+    touch /etc/fstab
     chown -Rv tester .
     su tester -c "make -k check"
     set -e

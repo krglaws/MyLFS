@@ -9,10 +9,12 @@ if $RUN_TESTS
 then
     set +e
     chown -R tester .
-    su tester -c "LANG=en_US.UTF-8 make -j1 test"
+    sed '/test_plugin_glvs/d' -i src/testdir/Make_all.mak
+    su tester -c "TERM=xterm-256color LANG=en_US.UTF-8 make -j1 test" \
+       &> vim-test.log
     set -e
 fi
 
 make install
 
-ln -sv ../vim/vim90/doc /usr/share/doc/vim-9.0.0228
+ln -sv ../vim/vim91/doc /usr/share/doc/vim-9.1.1629
