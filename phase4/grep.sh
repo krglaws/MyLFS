@@ -1,4 +1,5 @@
 # Grep Phase 4
+sed -i "s/echo/#echo/" src/egrep.sh
 ./configure --prefix=/usr
 
 make

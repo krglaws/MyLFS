@@ -4,6 +4,7 @@ glibc
 zlib
 bzip2
 xz
+lz4
 zstd
 file
 readline

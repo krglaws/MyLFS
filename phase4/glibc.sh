@@ -1,6 +1,12 @@
 # Glibc Phase 4
 patch -Np1 -i ../$(basename $PATCH_GLIBC)
 
+sed -e '/unistd.h/i #include <string.h>' \
+    -e '/libc_rwlock_init/c\
+  __libc_rwlock_define_initialized (, reset_lock);\
+  memcpy (&lock, &reset_lock, sizeof (lock));' \
+    -i stdlib/abort.c
+
 mkdir build
 cd build
 
@@ -8,9 +14,9 @@ echo "rootsbindir=/usr/sbin" > configparms
 
 ../configure --prefix=/usr                            \
              --disable-werror                         \
-             --enable-kernel=3.2                      \
+             --disable-nscd                           \
+             --enable-kernel=5.4                      \
              --enable-stack-protector=strong          \
-             --with-headers=/usr/include              \
              libc_cv_slibdir=/usr/lib
 
 make
@@ -26,11 +32,8 @@ touch /etc/ld.so.conf
 sed '/test-installation/s@$(PERL)@echo not running@' -i ../Makefile
 make install
 sed '/RTLDLIST=/s@/usr@@g' -i /usr/bin/ldd
-cp ../nscd/nscd.conf /etc/nscd.conf
-mkdir -p /var/cache/nscd
 
-mkdir -p /usr/lib/locale
-localedef -i POSIX -f UTF-8 C.UTF-8 2> /dev/null || true
+localedef -i C -f UTF-8 C.UTF-8
 localedef -i cs_CZ -f UTF-8 cs_CZ.UTF-8
 localedef -i de_DE -f ISO-8859-1 de_DE
 localedef -i de_DE@euro -f ISO-8859-15 de_DE@euro
@@ -54,7 +57,6 @@ localedef -i it_IT -f ISO-8859-1 it_IT
 localedef -i it_IT -f ISO-8859-15 it_IT@euro
 localedef -i it_IT -f UTF-8 it_IT.UTF-8
 localedef -i ja_JP -f EUC-JP ja_JP
-localedef -i ja_JP -f SHIFT_JIS ja_JP.SJIS 2> /dev/null || true
 localedef -i ja_JP -f UTF-8 ja_JP.UTF-8
 localedef -i nl_NL@euro -f ISO-8859-15 nl_NL@euro
 localedef -i ru_RU -f KOI8-R ru_RU.KOI8-R
@@ -65,6 +67,8 @@ localedef -i tr_TR -f UTF-8 tr_TR.UTF-8
 localedef -i zh_CN -f GB18030 zh_CN.GB18030
 localedef -i zh_HK -f BIG5-HKSCS zh_HK.BIG5-HKSCS
 localedef -i zh_TW -f UTF-8 zh_TW.UTF-8
+
+#TODO may need to add nsswitch.conf file here, ref sec 8.5.2.1 in book
 
 tar -xf ../../$(basename $PKG_TZDATA)
 
@@ -84,3 +88,9 @@ unset ZONEINFO
 
 ln -sf /usr/share/zoneinfo/America/New_York /etc/localtime
 
+cat > /etc/ld.so.conf << "EOF"
+# Begin /etc/ld.so.conf
+/usr/local/lib
+/opt/lib
+
+EOF
