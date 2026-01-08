@@ -2,7 +2,7 @@
 ./configure --prefix=/usr       \
             --enable-shared     \
             --without-ensurepip \
-            --withou-static-libpython
+            --without-static-libpython
 
 make
 make install
