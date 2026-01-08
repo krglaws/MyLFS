@@ -2,16 +2,6 @@
 mkdir build
 cd build
 
-EXPECTOUT=$(expect -c 'spawn ls')
-if [ "$EXPECTOUT" != "$(echo -ne 'spawn ls\r\n')" ]
-then
-    echo $EXPECTOUT
-    exit 1
-fi
-
-mkdir build
-cd build
-
 ../configure --prefix=/usr       \
              --sysconfdir=/etc   \
              --enable-ld=default \
