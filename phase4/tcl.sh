@@ -33,7 +33,7 @@ fi
 
 make install
 
-chmod 644 /usr/lib/libtcl8.6.a
+chmod 644 /usr/lib/libtclstub8.6.a
 
 chmod u+w /usr/lib/libtcl8.6.so
 
