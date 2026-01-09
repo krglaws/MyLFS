@@ -15,7 +15,7 @@ cd build
              --enable-languages=c,c++ \
              --enable-default-pie     \
              --enable-default-ssp     \
-             --enable-host-pie
+             --enable-host-pie        \
              --disable-multilib       \
              --disable-bootstrap      \
              --disable-fixincludes    \
