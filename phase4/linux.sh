@@ -1,5 +1,5 @@
 # LINUX Phase 4
-
+# section 10.3
 CONFIGFILE=config-$KERNELVERS
 
 make mrproper
@@ -16,12 +16,11 @@ make
 
 make modules_install
 
-cp .config /boot/$CONFIGFILE
-
-cp arch/x86/boot/bzImage /boot/vmlinuz-$KERNELVERS-lfs-$LFS_VERSION-systemd
+cp -i arch/x86/boot/bzImage /boot/vmlinuz-$KERNELVERS-lfs-$LFS_VERSION-systemd
 
 cp System.map /boot/System.map-$KERNELVERS
 
-install -d /usr/share/doc/linux-$KERNELVERS
+cp -i .config /boot/$CONFIGFILE
+
 cp -r Documentation -T /usr/share/doc/linux-$KERNELVERS
 
