@@ -1,5 +1,5 @@
 # Libxcrypt Phase 4
-./ configure --prefix=/usr                 \
+./configure --prefix=/usr                 \
              --enable-hashes=strong,glibc  \
              --enable-obsolete-api=no      \
              --disable-static              \

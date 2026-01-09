@@ -22,7 +22,6 @@ echo "rootsbindir=/usr/sbin" > configparms
       --build=$(../scripts/config.guess) \
       --disable-nscd                     \
       --enable-kernel=5.4                \
-      --with-headers=$LFS/usr/include    \
       libc_cv_slibdir=/usr/lib
 
 make

@@ -24,6 +24,6 @@ fi
 
 make tooldir=/usr install
 
-rm -f /usr/lib/lib{bfd,ctf,ctf-nobfd,gprofng,opcodes,sframe}.a \
+rm -rf /usr/lib/lib{bfd,ctf,ctf-nobfd,gprofng,opcodes,sframe}.a \
       /usr/share/doc/gprofng/
 
