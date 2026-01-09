@@ -1,7 +1,7 @@
 # Coreutils Phase 4
 patch -Np1 -i ../coreutils-9.7-upstream_fix-1.patch
 
-patch -Np1 -i ../coreutils-9.7-il8n-1.patch
+patch -Np1 -i ../coreutils-9.7-i18n-1.patch
 
 autoreconf -fv
 automake -af

@@ -1,5 +1,5 @@
 # Findutils Phase 4
-./configure --prefix/usr --localstatedir=/var/lib/locate
+./configure --prefix=/usr --localstatedir=/var/lib/locate
 
 make
 
