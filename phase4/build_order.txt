@@ -70,7 +70,7 @@ tar
 texinfo
 vim
 markupsafe
-jinja
+jinja2
 systemd
 dbus
 mandb
