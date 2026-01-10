@@ -14,6 +14,7 @@
             --disable-pylibmount \
             --disable-static     \
             --without-python     \
+            --disable-liblastlog2
 
 make
 

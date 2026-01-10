@@ -137,6 +137,11 @@ function check_dependencies {
         echo "WARNING: /usr/bin/awk should be a link to /usr/bin/gawk"
     fi
 
+    # TODO check that /bin/sh is a link to /bin/bash
+    #if [ ! -h /bin/sh -a "$(readlink -f /bin/sh)"="/bin/bash" ]
+    #then
+    #    echo "WARNING: /bin/sh should be a link to /bin/bash"
+
     # check G++ compilation
     echo 'int main(){}' > dummy.c && g++ -o dummy dummy.c
     if [ ! -x dummy ]
