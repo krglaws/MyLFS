@@ -77,7 +77,8 @@ EOF
 function check_dependency {
     local PROG=$1
     local MINVERS=$2
-    local MAXVERS=$([ -n "$3" ] && echo $3 || echo "none")
+    local MAXVERS=${3:-none}
+    local PROGNAME=${4:-$1}
 
     if ! command -v $PROG &> /dev/null
     then
@@ -85,7 +86,7 @@ function check_dependency {
         return
     fi
 
-    echo -e "$PROG:\n" \
+    echo -e "$PROGNAME:\n" \
             "  Minimum: $MINVERS, Maximum: $MAXVERS\n" \
             "  You have: $($PROG --version | head -n 1)"
 
@@ -101,29 +102,29 @@ function perl_vers {
 }
 
 function check_dependencies {
+    echo "NOTE: version numbers are not strict limits; versions less than or greater than the specified bounds have simply not been tested by the Linux From Scratch developers."
     check_dependency bash        3.2
-    check_dependency ld          2.13.1
+    check_dependency ld          2.13.1 2.45.1 binutils
     check_dependency bison       2.7
-    check_dependency chown       6.9
-    check_dependency diff        2.8.1
-    check_dependency find        4.2.31
+    check_dependency chown       8.1 "" coreutils
+    check_dependency diff        2.8.1 "" diffutils
+    check_dependency find        4.2.31 "" findutils
     check_dependency gawk        4.0.1
-    check_dependency gcc         5.4
-    check_dependency g++         5.4
+    check_dependency gcc         5.4 15.2.0
+    check_dependency g++         5.4 15.2.0
     check_dependency grep        2.5.1a
     check_dependency gzip        1.3.12
+    check_dependency kernel_vers 5.4 "" "kernel version"
     check_dependency m4          1.4.10
     check_dependency make        4.0
     check_dependency patch       2.5.4
+    check_dependency perl_vers   5.8.8 "" perl
     check_dependency python3     3.4
     check_dependency sed         4.1.5
     check_dependency sort        8.1
     check_dependency tar         1.22
-    check_dependency texi2any    5.0
-#    check_dependency makeinfo    4.7
+    check_dependency texi2any    5.0 "" texinfo
     check_dependency xz          5.0.0
-    check_dependency kernel_vers 3.2
-    check_dependency perl_vers   5.8.8
 
     # check that yacc is a link to bison
     if [ ! -h /usr/bin/yacc -a "$(readlink -f /usr/bin/yacc)"="/usr/bin/bison.yacc" ]
@@ -233,8 +234,6 @@ function init_image {
     mount -t $LFS_FS $LOOP_P1 $LFS
 
     e2label $LOOP_P1 $LFSROOTLABEL
-
-    rm -rf $LFS/lost+found
 
     echo "done."
 
