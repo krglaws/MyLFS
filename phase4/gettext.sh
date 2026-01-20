@@ -1,7 +1,7 @@
 # Gettext Phase 4
 ./configure --prefix=/usr    \
             --disable-static \
-            --docdir=/usr/share/doc/gettext-0.21
+            --docdir=/usr/share/doc/gettext-0.26
 
 make
 

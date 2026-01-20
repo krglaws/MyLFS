@@ -121,6 +121,7 @@ function check_dependencies {
     check_dependency perl_vers   5.8.8 "" perl
     check_dependency python3     3.4
     check_dependency sed         4.1.5
+    check_dependency sort        8.1
     check_dependency tar         1.22
     check_dependency texi2any    5.0 "" texinfo
     check_dependency xz          5.0.0
@@ -136,6 +137,11 @@ function check_dependencies {
     then
         echo "WARNING: /usr/bin/awk should be a link to /usr/bin/gawk"
     fi
+
+    # TODO check that /bin/sh is a link to /bin/bash
+    #if [ ! -h /bin/sh -a "$(readlink -f /bin/sh)"="/bin/bash" ]
+    #then
+    #    echo "WARNING: /bin/sh should be a link to /bin/bash"
 
     # check G++ compilation
     echo 'int main(){}' > dummy.c && g++ -o dummy dummy.c
@@ -209,6 +215,8 @@ function init_image {
 
     # reattach loop device to re-read partition table
     losetup -d $LOOP
+    # wait a couple seconds otherwise it doesn't work
+    sleep 2
     losetup -P $LOOP $LFS_IMG
 
     # exporting for grub.cfg
@@ -414,10 +422,11 @@ function unmount_image {
     local MOUNTED_LOCS=$(mount | grep "$LFS\|$INSTALL_MOUNT")
     if [ -n "$MOUNTED_LOCS" ];
     then
+        sleep 2
         echo "$MOUNTED_LOCS" | cut -d" " -f3 | tac | xargs umount
     fi
 
-    # detatch loop device
+    # detach loop device
     local ATTACHED_LOOP=$(losetup | grep $LFS_IMG)
     if [ -n "$ATTACHED_LOOP" ]
     then

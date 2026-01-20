@@ -99,7 +99,7 @@ The script builds LFS by completing the following steps:
 6. Begin to build tools required for minimal chroot environment. (chapter 6)
 
 
-7. Enter chroot environment, and build remaing tools needed to build the entire LFS system. (chapter 7)
+7. Enter chroot environment, and build remaining tools needed to build the entire LFS system. (chapter 7)
 
 
 8. Build the entire LFS system from within chroot envirnment, including the kernel, GRUB, and others. (chapter 8)

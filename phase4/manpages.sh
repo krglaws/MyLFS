@@ -1,3 +1,4 @@
 # Man Pages Phase 4
-make prefix=/usr install
+rm -v man3/crypt*
+make -R GIT=false prefix=/usr install
 

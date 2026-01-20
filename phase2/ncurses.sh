@@ -1,11 +1,11 @@
 # ncurses Phase 2
-sed -i s/mawk// configure
 
 mkdir build
 pushd build
-../configure
+../configure --prefix=$LFS/tools AWK=gawk
 make -C include
 make -C progs tic
+install progs/tic $LFS/tools/bin
 popd
 
 ./configure --prefix=/usr                \
@@ -19,9 +19,11 @@ popd
             --without-debug              \
             --without-ada                \
             --disable-stripping          \
-            --enable-widec
+            AWK=gawk
 
 make
-make DESTDIR=$LFS TIC_PATH=$(pwd)/build/progs/tic install
-echo "INPUT(-lncursesw)" > $LFS/usr/lib/libncurses.so
+make DESTDIR=$LFS install
+ln -sv libncursesw.so $LFS/usr/lib/libncurses.so
+sed -e 's/^#if.*XOPEN.*$/#if 1/' \
+    -i $LFS/usr/include/curses.h
 

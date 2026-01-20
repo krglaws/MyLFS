@@ -9,7 +9,9 @@ cd build
     --target=$LFS_TGT \
     --disable-nls \
     --enable-gprofng=no \
-    --disable-werror
+    --disable-werror    \
+    --enable-new-dtags \
+    --enable-default-hash-style=gnu
 
 make
 

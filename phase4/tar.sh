@@ -13,5 +13,5 @@ fi
 
 make install
 
-make -C doc install-html docdir=/usr/share/doc/tar-1.34
+make -C doc install-html docdir=/usr/share/doc/tar-1.35
 

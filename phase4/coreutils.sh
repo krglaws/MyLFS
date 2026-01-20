@@ -1,7 +1,10 @@
 # Coreutils Phase 4
-patch -Np1 -i ../$(basename $PATCH_COREUTILS)
+patch -Np1 -i ../coreutils-9.7-upstream_fix-1.patch
 
-autoreconf -fiv
+patch -Np1 -i ../coreutils-9.7-i18n-1.patch
+
+autoreconf -fv
+automake -af
 FORCE_UNSAFE_CONFIGURE=1 ./configure \
             --prefix=/usr            \
             --enable-no-install-program=kill,uptime
@@ -12,11 +15,11 @@ if $RUN_TESTS
 then
     set +e
     make NON_ROOT_USERNAME=tester check-root
-    echo "dummy:x:102:tester" >> /etc/group
+    groupadd -g 102 dummy -U tester
     chown -R tester . 
-    su tester -c "PATH=$PATH make RUN_EXPENSIVE_TESTS=yes check"
-    sed -i '/dummy/d' /etc/group
-    set -e
+    su tester -c "PATH=$PATH make RUN_EXPENSIVE_TESTS=yes check" \
+       < /dev/null
+    groupdel dummy
 fi
 
 make install

@@ -3,7 +3,7 @@ mkdir -p /var/lib/hwclock
 
 ./configure ADJTIME_PATH=/var/lib/hwclock/adjtime    \
             --libdir=/usr/lib    \
-            --docdir=/usr/share/doc/util-linux-2.38.1 \
+            --docdir=/usr/share/doc/util-linux-2.41.1 \
             --disable-chfn-chsh  \
             --disable-login      \
             --disable-nologin    \
@@ -13,6 +13,7 @@ mkdir -p /var/lib/hwclock
             --disable-pylibmount \
             --disable-static     \
             --without-python     \
+            --disable-liblastlog2\
             runstatedir=/run
 
 make
