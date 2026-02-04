@@ -1,10 +1,19 @@
 # Procps-ng Phase 4
-./configure --prefix=/usr                            \
+if $BUILDSYSTEMD
+then
+    ./configure --prefix=/usr                       \
+            --docdir=/usr/share/doc/procps-ng-4.0.5 \
+            --disable-static                        \
+            --disable-kill                          \
+            --enable-watch8bit                      \
+            --with-systemd
+else
+    ./configure --prefix=/usr                        \
             --docdir=/usr/share/doc/procps-ng-4.0.5  \
             --disable-static                         \
             --disable-kill                           \
-            --enable-watch8bit                       \
-            --with-systemd
+            --enable-watch8bit
+fi
 
 make
 

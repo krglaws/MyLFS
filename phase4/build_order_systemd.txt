@@ -71,12 +71,10 @@ texinfo
 vim
 markupsafe
 jinja2
-udev systemd
+systemd
+dbus
 mandb
 procps
 utillinux
 e2fsprogs
-sysklogd
-sysvinit
-lfsbootscripts
 linux

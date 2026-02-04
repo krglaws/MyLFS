@@ -8,14 +8,14 @@ makeinfo --plaintext       -o doc/dejagnu.txt  ../doc/dejagnu.texi
 
 make check
 
-make install
-install -dm755  /usr/share/doc/dejagnu-1.6.3
-install -m644   doc/dejagnu.{html,txt} /usr/share/doc/dejagnu-1.6.3
-
 if $RUN_TESTS
 then
     set +e
     make check
     set -e
 fi
+
+make install
+install -dm755  /usr/share/doc/dejagnu-1.6.3
+install -m644   doc/dejagnu.{html,txt} /usr/share/doc/dejagnu-1.6.3
 

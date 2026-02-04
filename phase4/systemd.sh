@@ -1,4 +1,5 @@
 # systemd Phase 4
+
 sed -e 's/GROUP="render"/GROUP="video"/' \
     -e 's/GROUP="sgx", //'               \
     -i rules.d/50-udev-default.rules.in
@@ -28,8 +29,13 @@ meson setup ..                \
 
 ninja
 
-echo 'NAME="Linux From Scratch"' > /etc/os-release
-#ninja test
+if $RUN_TESTS
+then
+    set -e
+    echo 'NAME="Linux From Scratch"' > /etc/os-release
+    ninja test
+    set +e
+fi
 
 ninja install
 
@@ -40,4 +46,3 @@ tar -xf ../../systemd-man-pages-257.8.tar.xz  \
 systemd-machine-id-setup
 
 systemctl preset-all
-

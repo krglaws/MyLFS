@@ -11,5 +11,4 @@ make
 make install
 mv /etc/bash_completion.d/grub /usr/share/bash-completion/completions
 
-# TODO not sure if this is necessary yet
 grub-install $LOOP --target i386-pc

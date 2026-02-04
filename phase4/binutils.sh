@@ -19,6 +19,7 @@ if $RUN_TESTS
 then
     set +e
     make -k check 
+    grep '^FAIL:' $(find -name '*.log')
     set -e
 fi
 

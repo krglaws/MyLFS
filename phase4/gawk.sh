@@ -13,6 +13,7 @@ then
     set -e
 fi
 
+rm -f /usr/bin/gawk-5.3.2
 make install
 
 ln -sv gawk.1 /usr/share/man/man1/awk.1

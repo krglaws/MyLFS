@@ -1,10 +1,10 @@
 # Bash Phase 2
-./configure --prefix=/usr                   \
-            --build=$(support/config.guess) \
-            --host=$LFS_TGT                 \
+./configure --prefix=/usr                      \
+            --build=$(sh support/config.guess) \
+            --host=$LFS_TGT                    \
             --without-bash-malloc
 
 make
 make DESTDIR=$LFS install
-ln -sv bash $LFS/bin/sh
+ln -s bash $LFS/bin/sh
 

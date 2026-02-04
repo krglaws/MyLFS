@@ -6,7 +6,6 @@
             --without-normal        \
             --with-cxx-shared       \
             --enable-pc-files       \
-            --enable-widec          \
             --with-pkg-config-libdir=/usr/lib/pkgconfig
 
 make
