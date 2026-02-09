@@ -6,8 +6,7 @@ meson setup --prefix=/usr --buildtype=release --wrap-mode=nofallback ..
 
 ninja
 
-if $RUN_TESTS
-then
+if (( RUN_TESTS )); then
     set -e
     ninja test
     set +e

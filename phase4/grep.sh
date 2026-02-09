@@ -4,8 +4,7 @@ sed -i "s/echo/#echo/" src/egrep.sh
 
 make
 
-if $RUN_TESTS
-then
+if (( RUN_TESTS )); then
     set +e
     make check
     set -e

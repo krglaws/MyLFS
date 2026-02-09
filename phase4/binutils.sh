@@ -15,8 +15,7 @@ cd build
 
 make tooldir=/usr
 
-if $RUN_TESTS
-then
+if (( RUN_TESTS )); then
     set +e
     make -k check 
     grep '^FAIL:' $(find -name '*.log')

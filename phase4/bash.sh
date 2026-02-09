@@ -7,8 +7,7 @@
 make
 
 
-if $RUN_TESTS
-then
+if (( RUN_TESTS )); then
     set +e
 chown -R tester .
 LC_ALL=C.UTF-8 su -s /usr/bin/expect tester << "EOF"

@@ -8,8 +8,7 @@ makeinfo --plaintext       -o doc/dejagnu.txt  ../doc/dejagnu.texi
 
 make check
 
-if $RUN_TESTS
-then
+if (( RUN_TESTS )); then
     set +e
     make check
     set -e

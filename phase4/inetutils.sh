@@ -15,8 +15,7 @@ sed -i 's/def HAVE_TERMCAP_TGETENT/ 1/' telnet/telnet.c
 
 make
 
-if $RUN_TESTS
-then
+if (( RUN_TESTS )); then
     set +e
     make check
     set -e

@@ -7,8 +7,7 @@
 
 make
 
-if $RUN_TESTS
-then
+if (( RUN_TESTS )); then
     set +e
     HARNESS_JOBS=$(nproc) make test
     set -e

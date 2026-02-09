@@ -10,8 +10,7 @@ patch -Np1 -i ../expect-5.45.4-gcc15-1.patch
 
 make
 
-if $RUN_TESTS
-then
+if (( RUN_TESTS )); then
     set +e
     make test 
     set -e

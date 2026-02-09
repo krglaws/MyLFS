@@ -7,8 +7,7 @@
 
 make
 
-if $RUN_TESTS
-then
+if (( RUN_TESTS )); then
     set +e
     make test TESTOPTS="--timeout 120"
     set -e

@@ -8,8 +8,7 @@ sed -i '/long long t1;/,+1s/()/(...)/' configure
 make
 make html
 
-if $RUN_TESTS
-then
+if (( RUN_TESTS )); then
     set +e
     make check 
     set -e

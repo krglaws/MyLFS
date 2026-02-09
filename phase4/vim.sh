@@ -5,8 +5,7 @@ echo '#define SYS_VIMRC_FILE "/etc/vimrc"' >> src/feature.h
 
 make
 
-if $RUN_TESTS
-then
+if (( RUN_TESTS )); then
     set +e
     chown -R tester .
     sed '/test_plugin_glvs/d' -i src/testdir/Make_all.mak

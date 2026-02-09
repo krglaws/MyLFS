@@ -20,8 +20,7 @@ sh Configure -des                                         \
 
 make
 
-if $RUN_TESTS
-then
+if (( RUN_TESTS )); then
     set +e
     TEST_JOBS=$(nproc) make test_harness
     set -e

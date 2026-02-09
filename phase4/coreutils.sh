@@ -11,8 +11,7 @@ FORCE_UNSAFE_CONFIGURE=1 ./configure \
 
 make
 
-if $RUN_TESTS
-then
+if (( RUN_TESTS )); then
     set +e
     make NON_ROOT_USERNAME=tester check-root
     groupadd -g 102 dummy -U tester

@@ -21,8 +21,7 @@ echo "rootsbindir=/usr/sbin" > configparms
 
 make
 
-if $RUN_TESTS
-then
+if (( RUN_TESTS )); then
     set +e
     make check
     set -e
@@ -37,8 +36,7 @@ sed '/RTLDLIST=/s@/usr@@g' -i /usr/bin/ldd
 localedef -i C -f UTF-8 C.UTF-8
 localedef -i en_US -f UTF-8 en_US.UTF-8
 
-if $RUN_TESTS
-then
+if (( RUN_TESTS )); then
     # used for tests later in the build
 
     #localedef -i C -f UTF-8 C.UTF-8

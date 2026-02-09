@@ -27,8 +27,7 @@ ulimit -s -H unlimited
 
 sed -e '/cpython/d' -i ../gcc/testsuite/gcc.dg/plugin/plugin.exp
 
-if $RUN_TESTS
-then
+if (( RUN_TESTS )); then
     set +e
     chown -Rv tester .
     su tester -c "PATH=$PATH make -k check"

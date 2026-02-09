@@ -4,8 +4,7 @@ sed 's/! $output_file eq/$output_file ne/' -i tp/Texinfo/Convert/*.pm
 
 make
 
-if $RUN_TESTS
-then
+if (( RUN_TESTS )); then
     set +e
     make check
     set -e

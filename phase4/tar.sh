@@ -4,8 +4,7 @@ FORCE_UNSAFE_CONFIGURE=1  \
 
 make
 
-if $RUN_TESTS
-then
+if (( RUN_TESTS )); then
     set +e
     make check 
     set -e

@@ -4,8 +4,7 @@
 make
 make html
 
-if $RUN_TESTS
-then
+if (( RUN_TESTS )); then
     set +e
     chown -R tester .
     su tester -c "PATH=$PATH make check"

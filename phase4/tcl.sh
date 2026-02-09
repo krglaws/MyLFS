@@ -24,8 +24,7 @@ sed -e "s|$SRCDIR/unix/pkgs/itcl4.3.2|/usr/lib/itcl4.3.2|" \
 
 unset SRCDIR
 
-if $RUN_TESTS
-then
+if (( RUN_TESTS )); then
     set +e
     make test
     set -e
