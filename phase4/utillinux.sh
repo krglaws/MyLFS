@@ -1,6 +1,5 @@
 # Util-linux Phase 4
-if $BUILDSYSTEMD
-then
+if (( BUILDSYSTEMD )); then
     ./configure --bindir=/usr/bin     \
             --libdir=/usr/lib     \
             --runstatedir=/run    \

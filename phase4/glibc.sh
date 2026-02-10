@@ -78,8 +78,7 @@ if (( RUN_TESTS )); then
     make localedata/install-locales
 fi
 
-if $BUILDSYSTEMD
-then
+if (( BUILDSYSTEMD )); then
     cat > /etc/nsswitch.conf << "EOF"
 # Begin /etc/nsswitch.conf
 

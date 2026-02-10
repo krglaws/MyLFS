@@ -1,6 +1,5 @@
 # Procps-ng Phase 4
-if $BUILDSYSTEMD
-then
+if (( BUILDSYSTEMD )); then
     ./configure --prefix=/usr                       \
             --docdir=/usr/share/doc/procps-ng-4.0.5 \
             --disable-static                        \

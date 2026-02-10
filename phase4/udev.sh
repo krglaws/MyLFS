@@ -44,8 +44,9 @@ install -vm644 hwdb.d/*  ../hwdb.d/{*.hwdb,README} /usr/lib/udev/hwdb.d/
 install -vm755 $udev_helpers                       /usr/lib/udev
 install -vm644 ../network/99-default.link          /usr/lib/udev/network
 
-tar -xvf ../$PKG_UDEVLFS
-make -f ${PKG_UDEVLFS%.tar.gz}/Makefile.lfs install
+UDEVLFS=$(basename "$PKG_UDEVLFS")
+tar -xvf "/sources/$UDEVLFS"
+make -f ${UDEVLFS%.tar.xz}/Makefile.lfs install
 
 tar -xf ../../systemd-man-pages-257.8.tar.xz                      \
 --no-same-owner --strip-components=1                              \
@@ -53,16 +54,16 @@ tar -xf ../../systemd-man-pages-257.8.tar.xz                      \
                               '*/systemd.link.5'                  \
                               '*/systemd-'{hwdb,udevd.service}.8
 
-sed 's|systemd/network|udev/network|'                                 \
-    /usr/share/man/man5/systemd.link.5                                \
-    /usr/share/man/man5/udev.link.5
+sed 's|systemd/network|udev/network|'                             \
+     /usr/share/man/man5/systemd.link.5                           \
+    >/usr/share/man/man5/udev.link.5
 
 sed 's/systemd\(\\\?-\)/udev\1/' /usr/share/man/man8/systemd-hwdb.8   \
-                                 /usr/share/man/man8/udev-hwdb.8
+                                >/usr/share/man/man8/udev-hwdb.8
 
-sed 's|lib.*udevd|sbin/udevd|'                                        \
-    /usr/share/man/man8/systemd-udevd.service.8                       \
-    /usr/share/man/man8/udevd.8
+sed 's|lib.*udevd|sbin/udevd|'                                    \
+     /usr/share/man/man8/systemd-udevd.service.8                  \
+    >/usr/share/man/man8/udevd.8
 
 rm /usr/share/man/man*/systemd*
 

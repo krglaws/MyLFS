@@ -9,9 +9,6 @@ ARCH=$(uname -m)
 
 set +h
 umask 022
-export PATH=/usr/bin
-if [ ! -L /bin ]; then PATH=/bin:$PATH; fi
-PATH=$LFS/tools/bin:$PATH
 
 # exported vars are used by one or more of:
 # 1) the scripts in the chroot env
@@ -26,13 +23,16 @@ export LFS_ROOT_LABEL=LFSROOT
 export LFS_FS_TYPE=ext4
 export LFS_ZONEINFO=America/New_York
 export MAKEFLAGS=${MAKEFLAGS:--j8}
-export ROOT_PASSWD=${ROOT_PASSWD:-password}
+export ROOT_PASSWD=${ROOT_PASSWD:-password} # change this to whatever you want
 export LFS_HOSTNAME=${LFS_HOSTNAME:-lfs}  # change this to whatever you want
 
 # these are configs used by mylfs.sh, but are not
 # likely to be something you will want to change
 export LFS=$SCRIPT_DIR/mnt/lfs
 export CONFIG_SITE=$LFS/usr/share/config.site
+export PATH=/usr/bin:/usr/sbin
+if [ ! -L /bin ]; then PATH=/bin:$PATH; fi
+PATH=$LFS/tools/bin:$PATH
 LFS_IMG=$SCRIPT_DIR/lfs.img
 LFS_IMG_SIZE=$((10*1024*1024*1024)) # 10 GiB
 INSTALL_MOUNT=$SCRIPT_DIR/mnt/install
@@ -42,15 +42,18 @@ LFS_PACKAGE_DIR=$SCRIPT_DIR/packages
 ################################################
 # the following configs are overrideable via the
 # mylfs.sh command line inteface.
-VERBOSE=0  # show a little more output
-VERYVERBOSE=0  # show a LOT more output
+VERBOSITY=1  # how much logger output to show 0 == no output
+SHOWBUILDOUTPUT=0 # echo all build commands and their outputs to terminal
 ONEOFF=0  # only build package specified by STARTPHASE + STARTPKG
-EXTENSION=  # path to extension directory (see ./example_extension)
+EXTENSIONDIR=  # path to extension directory (see ./example_extension)
 STARTPKG=  # package to start build at
 ENDPHASE=  # phase to halt build at
 ENDPKG=  # package to halt build at
 KERNELCONFIG=  # path to kernel config
 DROPSHELL=0  # run interactive bash session instead of build script
+SKIPDOWNLOAD=0 # skip the --download step which often preceeds other operations
+SKIPINIT=0 # skip the --init step which often preceeds other operations
+export RUN_TESTS=0
 
 # used for the systemd build
 export BUILDSYSTEMD=0

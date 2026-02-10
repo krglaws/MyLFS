@@ -38,7 +38,8 @@ on the device you specify.
                                 It is recommended that you run this before proceeding
                                 with the rest of the build.
 
-        -b|--build-all          Run the entire script from beginning to end.
+        -b|--build-all          Run the entire script from beginning to end. This is
+                                equivalent to running the script with no arguments.
 
         -x|--extend             Pass in the path to a custom build extension. See the
                                 'example_extension' directory for reference.
@@ -124,65 +125,62 @@ install_template() {
 }
 
 init_image() {
+
+    if (( SKIPINIT )); then
+        log_warning "skipping image init"
+        return 0
+    fi
+
     if ! check_root_user; then
         return 1
     fi
 
-    if [[ -f $LFS_IMG ]]
-    then
-        log_warning "$LFS_IMG is present. If you start from the beginning, this file will be deleted."
-        read -rp "Continue? (Y/N): " confirm
-        if [[ $confirm == [yY] || $confirm == [yY][eE][sS] ]]
-        then
-            set +e
-            with_log "Cleaning... " "yes | clean_image > /dev/null"
-            set -e
+    if [[ -f $LFS_IMG ]]; then
+        if prompt_warning "$LFS_IMG is present; proceeding will delete this file"; then
+            autoclean() { echo y | clean_image >/dev/null; }
+            with_log "cleaning $LFS_IMG" autoclean
         else
-            exit
+            return 1
         fi
     fi
 
-    trap "log_error 'init failed' && unmount_image && exit 1" ERR
-
-    (( VERYVERBOSE )) && set -x
-
     # create image file
-    fallocate -l"$LFS_IMG_SIZE" "$LFS_IMG"
+    with_log "allocating $LFS_IMG" fallocate -l"$LFS_IMG_SIZE" "$LFS_IMG"
 
     # attach loop device
     export LOOP  # export for grub.sh
     LOOP=$(losetup -f)
     local LOOP_P1=${LOOP}p1
-    losetup "$LOOP" "$LFS_IMG"
+    with_log "attaching $LFS_IMG to $LOOP" losetup "$LOOP" "$LFS_IMG"
 
-    # partition the device.
-    # remove spaces and comments from instructions
-    local fdisk_instr
-    # shellcheck disable=SC2001
-    fdisk_instr=$(echo "$FDISK_INSTR" | sed 's/ *#.*//')
+    format_img() { 
+        # remove spaces and comments from instructions
+        local fdisk_instr
+        # shellcheck disable=SC2001
+        fdisk_instr=$(echo "$FDISK_INSTR" | sed 's/ *#.*//')
+        # fdisk fails to get kernel to re-read the partition table
+        # so ignore non-zero exit code, and manually re-read
+        set +e
+        echo "$fdisk_instr" | fdisk "$LOOP" &> /dev/null;
+        set -e
+        return 0;
+    }
+    with_log "partitioning $LOOP" format_img
 
-    # fdisk fails to get kernel to re-read the partition table
-    # so ignore non-zero exit code, and manually re-read
-    trap - ERR
-    set +e
-    echo "$fdisk_instr" | fdisk "$LOOP" &> /dev/null
-    set -e
-    trap "log_error 'init failed.' && unmount_image && exit 1" ERR
-
-    # detach and then reattach loop device to reread file system
-    losetup -d "$LOOP"
-    sleep 2 # wait a couple of seconds before reattaching
-    losetup -P "$LOOP" "$LFS_IMG"
+    reattach() { losetup -d "$LOOP"; sleep 2; losetup -P "$LOOP" "$LFS_IMG"; }
+    with_log "reattaching $LOOP" reattach
 
     # exporting for grub.cfg
     export LFSPARTUUID
-    LFSPARTUUID="$(lsblk -o PARTUUID "$LOOP_P1" | tail -1)"
-    while [[ -z $LFSPARTUUID ]]
-    do
-        # sometimes it takes a few seconds for the PARTUUID to be readable
-        sleep 1
+    label_partition() {
         LFSPARTUUID="$(lsblk -o PARTUUID "$LOOP_P1" | tail -1)"
-    done
+        while [[ -z $LFSPARTUUID ]]; do
+            # sometimes it takes a few seconds for the PARTUUID to be readable
+            sleep 1
+            LFSPARTUUID="$(lsblk -o PARTUUID "$LOOP_P1" | tail -1)"
+        done
+    }
+    with_log "exporting ${LOOP_P1}'s PARTUUID label" label_partition
 
     # setup root partition
     mkfs -t "$LFS_FS_TYPE" "$LOOP_P1" &> /dev/null
@@ -194,28 +192,14 @@ init_image() {
     # LFS 12.4 Section 4.2
     mkdir -p "$LFS/"{etc,var}
     mkdir -p "$LFS/usr/"{bin,lib,sbin}
-    for i in bin lib sbin
-    do
+    local i
+    for i in bin lib sbin; do
         ln -s "usr/$i" "$LFS/$i"
     done
     case $(uname -m) in
         x86_64) mkdir -p "$LFS/lib64" ;;
     esac
     mkdir -p "$LFS/tools"
-
-    # LFS 12.4 Section 7.3
-    mkdir -p "$LFS"/{dev,proc,sys,run}
-    mount --bind /dev "$LFS/dev"
-    mount -t devpts devpts -o gid=5,mode=0620 "$LFS/dev/pts"
-    mount -t proc proc "$LFS/proc"
-    mount -t sysfs sysfs "$LFS/sys"
-    mount -t tmpfs tmpfs "$LFS/run"
-
-    if [[ -h "$LFS/dev/shm" ]]; then
-      install -d -m 1777 "$LFS/$(realpath /dev/shm)"
-    else
-      mount -t tmpfs -o nosuid,nodev tmpfs "$LFS/dev/shm"
-    fi
 
     # LFS 12.4 Section 7.5
     mkdir -p "$LFS/etc/"{opt,sysconfig}
@@ -237,8 +221,7 @@ init_image() {
     # LFS 12.4 Section 7.6
     ln -s /proc/self/mounts "$LFS/etc/mtab"
 
-    if (( BUILDSYSTEMD ))
-    then
+    if (( BUILDSYSTEMD )); then
         echo "$ETC_PASSWD_SYSTEMD" > "$LFS/etc/passwd"
         echo "$ETC_GROUP_SYSTEMD" > "$LFS/etc/group"
         mkdir -p "$LFS/etc/systemd/network"
@@ -266,18 +249,16 @@ init_image() {
     # install static files
     echo "$LFS_HOSTNAME" > "$LFS/etc/hostname"
     echo "$LFS_VERSION" > "$LFS/etc/lfs-release"
-    for f in ./static/*
-    do
+    local f
+    for f in ./static/*; do
         install_static "$f"
     done
-    if [ -n "$KERNELCONFIG" ]
-    then
+    if [[ -n $KERNELCONFIG ]]; then
         cp "$KERNELCONFIG" "$LFS/boot/config-$LFS_KERNEL_VERSION"
     fi
 
     # install templates
-    for f in ./templates/*
-    do
+    for f in ./templates/*; do
         install_template "$f"
     done
 
@@ -286,19 +267,10 @@ init_image() {
     cp ./packages/* "$LFS/sources"
 
     set +x
-
-    trap - ERR
-}
-
-cleanup_cancelled_download() {
-    local url=${1:?cleanup_cancelled_download(): url required}
-    local package
-    package="$LFS_PACKAGE_DIR/$(basename "$1")"
-    [[ -f "$package" ]] && rm -f "$package"
 }
 
 download_packages() {
-    local extension_dir=$1
+    local extension_dir=${1:-}
     local package_dir=$LFS_PACKAGE_DIR
     local package_list=$LFS_PACKAGE_LIST
     if [[ -n $extension_dir ]]; then
@@ -306,6 +278,11 @@ download_packages() {
         # override the packages and packages.sh paths
         package_dir=$extension_dir/packages
         package_list=$extension_dir/packages.sh
+    fi
+
+    if (( SKIPDOWNLOAD )); then
+        log_warning "skipping package download"
+        return 0
     fi
 
     if ! [[ -f $package_list ]]; then
@@ -317,37 +294,37 @@ download_packages() {
 
     local package_urls
     package_urls=$(grep "^[^#]" < "$package_list" | cut -d"=" -f2)
-    local already_downloaded
-    already_downloaded=$(ls "$package_dir")
 
     _download_url() {
-        trap 'log_error package download failed && cleanup_cancelled_download "$url" && return 1' ERR
         local url=${1:?_download_url(): url required}
-        if ! echo "$already_downloaded" | grep "$(basename "$url")" > /dev/null
-        then
-            if ! curl --location --silent --output "$LFS_PACKAGE_DIR/$(basename "$url")" "$url"
-            then
+        if ! find "$LFS_PACKAGE_DIR" -mindepth 1 ! -name '*.in_progress' | \
+            grep "$(basename "$url")" > /dev/null; then
+            if ! curl --location --silent --output "$LFS_PACKAGE_DIR/$(basename "$url")" "$url"; then
                 log_error "failed to download '$url'"
                 return 1
             fi
         else
-            log_warning "already have it -- skipping."
+            log_warning "already have $(basename "$url") -- skipping."
         fi
-        trap - ERR
     }
 
-    for url in $package_urls
-    do
-        trap 'log_warning package download cancelled && cleanup_cancelled_download "$url" && exit 1' SIGINT
-
-        if ! with_log "downloading '$url'" _download_url "$url"; then
+    local url
+    for url in $package_urls; do
+        # track in-progress downloads and remove packages we failed to download in previous runs
+        local dwnldfile
+        dwnldfile="$LFS_PACKAGE_DIR/$(basename "$url")"
+        local in_progress="${dwnldfile}.in_progress"
+        if [[ -f $in_progress ]]; then
+            log_warning "$dwnldfile appears to be incomplete -- redownloading"
+            rm -f "$in_progress" "$dwnldfile"
+        fi
+        touch "$in_progress"
+        if ! with_log "downloading $(basename "$url")" _download_url "$url"; then
             return 1
         fi
-
-        trap - ERR SIGINT
+        rm "$in_progress"
     done
 }
-
 
 mount_image() {
     if ! check_root_user; then
@@ -363,27 +340,28 @@ mount_image() {
     # make sure everything is unmounted first
     with_log "making sure image is unmounted" unmount_image
 
-    # unmount if anything fails while mounting
-    trap "log_error failed to mount && unmount_image && exit 1" ERR SIGINT
-    (( VERYVERBOSE )) && set -x
-
     # attach loop device
     export LOOP
     LOOP=$(losetup -f) # export for grub.sh
     local LOOP_P1=${LOOP}p1
 
-    losetup -P "$LOOP" "$LFS_IMG"
+    with_log "attaching $LOOP" losetup -P "$LOOP" "$LFS_IMG"
 
-    mount "$LOOP_P1" "$LFS"
+    with_log "mounting $LOOP_P1 onto $LFS" mount "$LOOP_P1" "$LFS"
 
-    # mount stuff from the host onto the target disk
-    mount --bind /dev "$LFS/dev"
-    mount --bind /dev/pts "$LFS/dev/pts"
-    mount -t proc proc "$LFS/proc"
-    mount -t sysfs sysfs "$LFS/sys"
-    mount -t tmpfs tmpfs "$LFS/run"
+    # LFS 12.4 Section 7.3
+    mkdir -p "$LFS"/{dev,proc,sys,run}
+    with_log "mounting /dev onto $LFS/dev" mount --bind /dev "$LFS/dev"
+    with_log "mounting devpts onto $LFS/dev/pts" mount -t devpts devpts -o gid=5,mode=0620 "$LFS/dev/pts"
+    with_log "mounting proc onto $LFS/proc" mount -t proc proc "$LFS/proc"
+    with_log "mounting sysfs onto $LFS/sys" mount -t sysfs sysfs "$LFS/sys"
+    with_log "mounting tmpfs onto $LFS/run" mount -t tmpfs tmpfs "$LFS/run"
 
-    set +x
+    if [[ -h "$LFS/dev/shm" ]]; then
+        with_log "creating $LFS/dev/shm" install -d -m 1777 "$LFS/$(realpath /dev/shm)"
+    else
+        with_log "mounting tmpfs onto $LFS/dev/shm" mount -t tmpfs -o nosuid,nodev tmpfs "$LFS/dev/shm"
+    fi
 }
 
 unmount_image() {
@@ -391,38 +369,36 @@ unmount_image() {
         return 1
     fi
 
-    (( VERYVERBOSE )) && set -x
-
     # unmount everything
     local MOUNTED_LOCS
-    MOUNTED_LOCS=$(mount | grep "$LFS\|$INSTALL_MOUNT")
-    if [ -n "$MOUNTED_LOCS" ];
-    then
-        sleep 5
-        echo "$MOUNTED_LOCS" | cut -d" " -f3 | tac | xargs umount
+    MOUNTED_LOCS=$(findmnt -R "$LFS" -o TARGET -n -l | tac)
+    IFS=$'\n'
+    if [[ -n $MOUNTED_LOCS ]]; then
+        local loc
+        for loc in $MOUNTED_LOCS; do
+            with_log "unmounting $loc" umount "$loc"
+        done
     fi
+    unset IFS
 
     # detach loop device
     local ATTACHED_LOOP
-    ATTACHED_LOOP=$(losetup | grep "$LFS_IMG")
-    if [ -n "$ATTACHED_LOOP" ]
-    then
-        losetup -d "$(echo "$ATTACHED_LOOP" | cut -d" " -f1)"
+    ATTACHED_LOOP=$(losetup | grep "$LFS_IMG" | cut -d" " -f1)
+    if [[ -n "$ATTACHED_LOOP" ]]; then
+        with_log "detatching $ATTACHED_LOOP" losetup -d "$ATTACHED_LOOP"
     fi
-
-    set +x
 }
 
 build_package() {
-    local build_phase=$1 # the phase directory where the script is located (1, 2, 3, or 4 (or 5 if building an extension))
+    local phase=$1 # the phase directory where the script is located (1, 2, 3, or 4 (or 5 if building an extension))
     local script_name=$2 # the name of the script without the .sh extension
     local tar_name=$3 # the shell variable name for the tar file without the PKG_ prefix (defaults to $script_name)
     local do_chroot=$4 # whether the script should be executed using chroot
     local drop_shell=$5 # start an interactive shell instead of running the build script
 
-    local log_file="$SCRIPT_DIR/logs/${script_name}_phase${build_phase}.log"
-    local script_path="$SCRIPT_DIR/phase${build_phase}/${script_name}.sh)"
-    if (( build_phase == 5 )); then
+    local log_file="$SCRIPT_DIR/logs/${script_name}_phase${phase}.log"
+    local script_path="$SCRIPT_DIR/phase${phase}/${script_name}.sh"
+    if (( phase == 5 )); then
         log_file="$EXTENSIONDIR/logs/${script_name}.log"
         script_path="$EXTENSIONDIR/scripts/${script_name}.sh"
     fi
@@ -435,28 +411,31 @@ build_package() {
     to_upper(){ echo "$@" | tr '[:lower:]' '[:upper:]'; }
 
     local pkg_var_name
-    pkg_var_name="$PKG_$(to_upper "$script_name")"
+    pkg_var_name="PKG_$(to_upper "$script_name")"
     if [[ $tar_name != "_" && $tar_name != "" ]]; then
         pkg_var_name="PKG_$(to_upper "$tar_name")"
     fi
 
+    local run_dir="$LFS/sources/$script_name"
+
+    local pkg_path
     if [[ $tar_name != "_" ]]; then
         if [[ -z ${!pkg_var_name} ]]; then
-            log_error "package variable '$pkg_var_name' is empty or undefined"
+            log_error "'$pkg_var_name': package variable is empty or undefined"
             return 1
-        elif [[ ! -f ${!pkg_var_name} ]]; then
-            log_error "package '${!pkg_var_name}' does not exist"
+        fi
+        pkg_path="$LFS/sources/$(basename "${!pkg_var_name}")"
+        if [[ ! -f $pkg_path ]]; then
+            log_error "'$pkg_path': package does not exist"
             return 1
         fi
     fi
 
-    local run_dir="$LFS/sources/$script_name"
-    local pkg_path="$LFS/sources/${!pkg_var_name}"
     rm -rf "$run_dir"
     mkdir -p "$run_dir"
 
     if [[ $tar_name != "_" ]]; then
-        with_log "extracting $pkg_path" tar -xf "$pkg_path" -C "$run_dir" --strip-components=1
+        with_log "extracting $pkg_path" tar -xf "$pkg_path" -C "$run_dir" --strip-components=1 || return 1
     fi
 
     local build_instr
@@ -475,28 +454,36 @@ build_package() {
 
     pushd "$LFS" > /dev/null
 
-    if (( do_chroot )); then
-        chroot "$LFS" /usr/bin/env \
-                        HOME=/root \
-                        TERM="$TERM" \
-                        PATH=/usr/bin:/usr/sbin \
-                        /usr/bin/bash +h -c "$build_instr" |& {
-                            { 
-                                (( VERYVERBOSE == 1 || drop_shell == 1 )) && tee "$log_file"; 
-                            } || cat > "$log_file";
-                        }
-    else
+    run_build() {
         eval "$build_instr" |& { 
             {
-                (( VERYVERBOSE == 1 || drop_shell == 1 )) && tee "$log_file";
+                (( SHOWBUILDOUTPUT || drop_shell )) && tee "$log_file";
             } || cat > "$log_file";
         }
-    fi
+    }
 
-    if (( PIPESTATUS[0] != 0 )); then
-        log_error "$script_name phase $build_phase failed"
-        tail -20 "$log_file"
-        return 1
+    run_build_chroot() {
+        chroot "$LFS" /usr/bin/env \
+            HOME=/root \
+            TERM="$TERM" \
+            PATH=/usr/bin:/usr/sbin \
+            /usr/bin/bash +h -c "$build_instr" |& {
+                { 
+                    (( SHOWBUILDOUTPUT || drop_shell )) && tee "$log_file"; 
+                } || cat > "$log_file";
+            }
+    }
+
+    if (( do_chroot )); then
+        if ! with_log "running phase$phase/${script_name}.sh in chroot environment" run_build_chroot; then
+            (( ! SHOWBUILDOUTPUT )) && tail -20 "$log_file"
+            return 1
+        fi
+    else
+        if ! with_log "running phase$phase/${script_name}.sh on host machine" run_build; then
+            (( ! SHOWBUILDOUTPUT )) && tail -20 "$log_file"
+            return 1
+        fi
     fi
 
     popd > /dev/null
@@ -570,7 +557,7 @@ build_phase() {
         local script_name
         script_name=$(echo "${build_order[$i]}" | cut -d" " -f1)
         local tar_name
-        script_name=$(echo "${build_order[$i]}" | cut -d" " -f2)
+        tar_name=$(echo "${build_order[$i]}" | cut -d" " -f2)
         if [[ -z "$tar_name" ]]; then
             tar_name=$script_name
         fi
@@ -590,6 +577,7 @@ build_phase() {
                 "$phase"       \
                 "$script_name" \
                 "$tar_name"    \
+                "$do_chroot"   \
                 "$DROPSHELL" || return 1
         fi
     done
@@ -609,7 +597,7 @@ build_extension() {
         return 1
     fi
 
-    [[ ! -d "$EXTENSIONDIR" ]] &&
+    [[ ! -d $EXTENSIONDIR ]] &&
         log_error "extension '$EXTENSIONDIR' is not a directory, or does not exist." && return 1
 
     [[ ! -f "$EXTENSIONDIR/packages.sh" ]] &&
@@ -634,7 +622,7 @@ build_extension() {
         return 1
     fi
 
-    (( VERYVERBOSE )) && set -x
+    (( VERBOSITY == 10 )) && set -x
 
     # copy packages onto LFS image
     if [[ -n $(ls "$EXTENSIONDIR/packages/") ]]; then
@@ -699,13 +687,11 @@ install_image() {
     # shellcheck disable=SC2001
     fdisk_instr=$(echo "$FDISK_INSTR" | sed 's/ *#.*//')
 
-    if ! echo "$fdisk_instr" | fdisk "$INSTALLTARGET" |& { (( VERYVERBOSE )) && cat || cat > /dev/null; }
+    if ! echo "$fdisk_instr" | fdisk "$INSTALLTARGET" |& { (( VERBOSITY == 10 )) && cat || cat > /dev/null; }
     then
         log_error "failed to format $INSTALLTARGET -- consider manually clearing $INSTALLTARGET's parition table"
         return 1
     fi
-
-    trap "log_error 'install failed' && unmount_image && exit 1" ERR
 
     mkdir -p "$LFS" "$INSTALL_MOUNT"
 
@@ -739,9 +725,7 @@ install_image() {
         chroot "$INSTALL_MOUNT" /usr/bin/bash -c \
             "grub-install '$INSTALLTARGET' --target i386-pc"
 
-    trap - ERR
-
-    unmount_image
+    with_log "unmounting $LFS_IMG" unmount_image
 
     log_info "installation successful"
 }
@@ -757,11 +741,10 @@ clean_image() {
         with_log "deleting $LFS_IMG" rm "$LFS_IMG"
     fi
 
-    if [[ -d $LOG_DIR && -n $(find "$LOG_DIR" -mindepth 1) ]]; then
-        with_log "deleting logs" rm -f "$LOG_DIR/"*
+    if [[ -d $SCRIPT_DIR/logs && -n $(find "$SCRIPT_DIR/logs" -mindepth 1) ]]; then
+        with_log "deleting logs" rm -f "$SCRIPT_DIR/logs/"*
     fi
 }
-
 
 main() {
     # ###############
@@ -770,22 +753,22 @@ main() {
 
     cd "$SCRIPT_DIR"
 
-    trap "log_error 'operation cancelled' && unmount_image && exit 1" SIGINT
-    trap "log_error 'build failed' && unmount_image && exit 1" ERR
-
     while [ $# -gt 0 ]; do
       case $1 in
         -V|--version)
           echo $LFS_VERSION
           exit
           ;;
-        -v|--verbose)
-          VERBOSE=1
+        -v)
+          VERBOSITY=3
           shift
           ;;
-        -vv|--very-verbose)
-          VERBOSE=1
-          VERYVERBOSE=1
+        -vv)
+          VERBOSITY=5
+          shift
+          ;;
+        -vvv)
+          VERBOSITY=10
           shift
           ;;
         -D|--systemd)
@@ -806,12 +789,20 @@ main() {
           shift
           shift
           ;;
-        -d|--download-packages)
+        -d|--download)
           DOWNLOAD=1
+          shift
+          ;;
+        -s|--skip-download)
+          SKIPDOWNLOAD=1
           shift
           ;;
         -i|--init)
           INIT=1
+          shift
+          ;;
+        -t|--skip-init)
+          SKIPINIT=1
           shift
           ;;
         -p|--start-phase)
@@ -894,6 +885,12 @@ main() {
             exit 1
         fi
     done
+    if (( ! opcount )); then
+        log_error 'must specify one of:'\
+        $'\n-b|--build-all\n-e|--check\n-d|--download-packages\n-i|--init\n-p|--start-phase\n'\
+        $'-m|--mount\n-u|--umount\n-n|--install\n-c|--clean'
+        exit 1
+    fi
 
     if [[ -n $STARTPHASE ]]; then
         if ! [[ $STARTPHASE =~ ^[1-5]$ ]]; then
@@ -943,7 +940,11 @@ main() {
         EXTENSIONDIR=$(realpath "$EXTENSIONDIR")
     fi
 
+    trap "trap - ERR && log_error 'operation cancelled' && unmount_image &> /dev/null && exit 1" SIGINT
+    trap "log_error 'operation failed' && unmount_image &> /dev/null && exit 0" ERR
+
     if (( CHECKDEPS )); then
+        set +e
         with_log "checking dependencies" version_check
         exit
     elif (( DOWNLOAD )); then
@@ -966,57 +967,76 @@ main() {
     elif [[ -n $INSTALLTARGET ]]; then
         with_log "installing image to '$INSTALLTARGET'" install_image
         exit
-    elif [[ -n $STARTPHASE ]]; then
-        with_log "downloading packages" download_packages
-        with_log "mounting image" mount_image
-    elif (( BUILDALL )); then
-        with_log "downloading packages" download_packages
-        with_log "creating image file" init_image
-    else
-        log_error "this should be unreachable"
-        false
+    fi # else BUILDALL/STARTPHASE
+
+    build_loop() {
+        local stop_phase=4
+        if [[ -n $EXTENSIONDIR ]]; then
+            stop_phase=5
+        fi
+
+        # vars that don't make sense to keep in config.sh
+        FOUNDSTARTPHASE=0
+        FOUNDSTARTPKG=0
+        HALTBUILD=0
+
+        local phase
+        for ((phase=1;phase<=stop_phase;phase++ )); do
+            if (( phase == 5 )); then
+                if ! with_log "building extension $EXTENSIONDIR" build_extension; then
+                    return 1
+                fi
+            else
+                if ! with_log "building phase $phase" build_phase "$phase"; then
+                    return 1
+                fi
+            fi
+
+            # phase 3 cleanup (LFS 12.4 Section 7.13.1)
+            if (( phase == 3 && (BUILDALL || STARTPHASE <= 3) )); then
+                post_phase_3_cleanup() {
+                    rm -rf "$LFS/usr/share/"{info,man,doc}/*
+                    find "$LFS/usr/"{lib,libexec} -name \*.la -delete
+                    rm -rf "$LFS/tools"
+                }
+                if ! with_log "post phase 3 cleanup" post_phase_3_cleanup; then
+                    return 1
+                fi
+            fi
+
+            if (( (ONEOFF && FOUNDSTARTPHASE) || HALTBUILD )); then
+                return 0
+            fi
+
+            # phase 4 cleanup (LFS 12.4 Section 8.85)
+            if (( phase == 4 && (BUILDALL || STARTPHASE <= 4) )); then
+                post_phase_4_cleanup() {
+                    # rm -rf "$LFS/tmp/"{*,.*} &&
+                    # above produces annoying stderr output about . and ..
+                    # so doing the below find cmd instead
+                    find "$LFS/tmp" -mindepth 1 -delete &&
+                    find "$LFS/usr/lib" "$LFS/usr/libexec" -name \*.la -delete &&
+                    find "$LFS/usr" -depth -name "$LFS_TGT*" -print0 | xargs --null rm -rf &&
+                    rm -rf "$LFS/home/tester" &&
+                    sed -i 's/^.*tester.*$//' "$LFS/etc/"{passwd,group} ||
+                    return 1
+                }
+                if ! with_log "post phase 4 cleanup" post_phase_4_cleanup; then
+                    return 1
+                fi
+            fi
+        done
+    }
+
+    if (( BUILDALL )); then
+        with_log "download packages" download_packages
+        with_log "creat image file" init_image
     fi
-
-    local stop_phase=4
-    if [[ -n $EXTENSIONDIR ]]; then
-        stop_phase=5
+    with_log "mount image" mount_image
+    if ! with_log "build LFS $LFS_VERSION" build_loop; then
+        exit 1
     fi
-
-    log_info "starting build..."
-
-    for ((i=1;i<=stop_phase;i++)); do
-        if (( i == 5 )); then
-            with_log "###### building phase $i ######" build_extension
-        else
-            with_log "###### building phase $i ######" build_phase "$i"
-        fi
-
-        # phase 3 cleanup (LFS 12.4 Section 7.13.1)
-        if (( i == 3 && (BUILDALL || STARTPHASE <= 3) )); then
-            rm -rf "$LFS/usr/share/"{info,man,doc}/*
-            find "$LFS/usr/"{lib,libexec} -name \*.la -delete
-            rm -rf "$LFS/tools"
-        fi
-
-        if (( (ONEOFF && FOUNDSTARTPHASE) || HALTBUILD )); then
-            unmount_image
-            exit
-        fi
-
-        # phase 4 cleanup (LFS 12.4 Section 8.85)
-        if (( i == 4 && (BUILDALL || STARTPHASE <= 4) )); then
-            rm -rf "$LFS/tmp/"{*,.*}
-            find "$LFS/usr/lib" "$LFS/usr/libexec" -name \*.la -delete
-            find "$LFS/usr" -depth -name "$LFS_TGT*" -print0 | xargs rm -rf
-            rm -rf "$LFS/home/tester"
-            sed -i 's/^.*tester.*$//' "$LFS/etc/"{passwd,group}
-        fi
-    done
-
-    # unmount and detatch image
-    unmount_image
-
-    log_info "build successful"
+    with_log "unmount image" unmount_image
 }
 
 # ###########
