@@ -171,13 +171,13 @@ init_image() {
     with_log "reattaching $LOOP" reattach
 
     # exporting for grub.cfg
-    export LFSPARTUUID
+    export LFS_PARTUUID
     label_partition() {
-        LFSPARTUUID="$(lsblk -o PARTUUID "$LOOP_P1" | tail -1)"
-        while [[ -z $LFSPARTUUID ]]; do
+        LFS_PARTUUID="$(lsblk -o PARTUUID "$LOOP_P1" | tail -1)"
+        while [[ -z $LFS_PARTUUID ]]; do
             # sometimes it takes a few seconds for the PARTUUID to be readable
             sleep 1
-            LFSPARTUUID="$(lsblk -o PARTUUID "$LOOP_P1" | tail -1)"
+            LFS_PARTUUID="$(lsblk -o PARTUUID "$LOOP_P1" | tail -1)"
         done
     }
     with_log "exporting ${LOOP_P1}'s PARTUUID label" label_partition
