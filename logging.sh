@@ -130,12 +130,15 @@ with_log() {
             end=$(get_ts)
             _finish_with_log ERROR "$msg" "$(( end - start ))"
             LOG_DEPTH=$(( LOG_DEPTH - 1 ))
+            LOG_LINE_OPEN=$(( prev_open && LOG_LINE_OPEN ))
             return 1
         fi
     else
         if ! "$@" >/dev/null; then
+            end=$(get_ts)
             _finish_with_log ERROR "$msg" "$(( end - start ))"
             LOG_DEPTH=$(( LOG_DEPTH - 1 ))
+            LOG_LINE_OPEN=$(( prev_open && LOG_LINE_OPEN ))
             return 1
         fi
     fi
@@ -156,7 +159,7 @@ prompt_warning() {
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
     VERBOSITY=3
     do_logs2(){
-        log_info "this should only show up with VERBOSITY>3"
+        log_error "this should only show up with VERBOSITY>3"
     }
     do_logs() {
         with_log "doing some nested stuff" do_logs2

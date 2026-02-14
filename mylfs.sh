@@ -1044,14 +1044,14 @@ main() {
     }
 
     if (( BUILDALL )); then
-        with_log "download packages" download_packages
-        with_log "creat image file" init_image
+        with_log "downloading packages" download_packages
+        with_log "creating image file" init_image
     fi
-    with_log "mount image" mount_image
-    if ! with_log "build LFS $LFS_VERSION" build_loop; then
+    with_log "mounting image" mount_image
+    if ! with_log "building LFS $LFS_VERSION" build_loop; then
         exit 1
     fi
-    with_log "unmount image" unmount_image
+    with_log "unmounting image" unmount_image
 }
 
 # ###########
