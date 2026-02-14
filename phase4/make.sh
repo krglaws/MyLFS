@@ -3,10 +3,10 @@
 
 make
 
-if $RUN_TESTS
-then
+if (( RUN_TESTS )); then
     set +e
-    make check
+    chown -R tester .
+    su tester -c "PATH=$PATH make check"
     set -e
 fi
 

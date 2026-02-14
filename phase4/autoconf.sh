@@ -3,10 +3,9 @@
 
 make
 
-if $RUN_TESTS
-then
+if (( RUN_TESTS )); then
     set +e
-    make check TESTSUITEFLAGS=-j4
+    make check
     set -e
 fi
 

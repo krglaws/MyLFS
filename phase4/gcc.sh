@@ -13,16 +13,21 @@ cd build
 ../configure --prefix=/usr            \
              LD=ld                    \
              --enable-languages=c,c++ \
+             --enable-default-pie     \
+             --enable-default-ssp     \
+             --enable-host-pie        \
              --disable-multilib       \
              --disable-bootstrap      \
+             --disable-fixincludes    \
              --with-system-zlib
 
 make
 
-ulimit -s 32768
+ulimit -s -H unlimited
 
-if $RUN_TESTS
-then
+sed -e '/cpython/d' -i ../gcc/testsuite/gcc.dg/plugin/plugin.exp
+
+if (( RUN_TESTS )); then
     set +e
     chown -Rv tester .
     su tester -c "PATH=$PATH make -k check"
@@ -33,12 +38,14 @@ fi
 make install
 
 chown -R root:root \
-    /usr/lib/gcc/*linux-gnu/12.2.0/include{,-fixed}
+    /usr/lib/gcc/$(gcc -dumpmachine)/15.2.0/include{,-fixed}
 
 ln -sr /usr/bin/cpp /usr/lib
 
-ln -sf ../../libexec/gcc/$(gcc -dumpmachine)/12.2.0/liblto_plugin.so \
-        /usr/lib/bfd-plugins/
+ln -s gcc.1 /usr/share/man/man1/cc.1
+
+ln -sf ../../libexec/gcc/$(gcc -dumpmachine)/15.2.0/liblto_plugin.so \
+       /usr/lib/bfd-plugins/
 
 mkdir -p /usr/share/gdb/auto-load/usr/lib
 mv /usr/lib/*gdb.py /usr/share/gdb/auto-load/usr/lib

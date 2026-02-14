@@ -1,17 +1,16 @@
 # Bash Phase 4
 ./configure --prefix=/usr                      \
-            --docdir=/usr/share/doc/bash-5.1.16 \
             --without-bash-malloc              \
+            --docdir=/usr/share/doc/bash-5.3   \
             --with-installed-readline
 
 make
 
 
-if $RUN_TESTS
-then
+if (( RUN_TESTS )); then
     set +e
 chown -R tester .
-su -s /usr/bin/expect tester << EOF
+LC_ALL=C.UTF-8 su -s /usr/bin/expect tester << "EOF"
 set timeout -1
 spawn make tests
 expect eof

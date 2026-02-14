@@ -1,3 +1,6 @@
+# Grub Phase 4
+echo depends bli part_gpt > grub-core/extra_deps.lst
+
 ./configure --prefix=/usr          \
             --sysconfdir=/etc      \
             --disable-efiemu       \

@@ -5,15 +5,17 @@ sed -i 's/extras//' Makefile.in
 
 make
 
-if $RUN_TESTS
-then
+if (( RUN_TESTS )); then
     set +e
-    make check
+    chown -R tester .
+    su tester -c "PATH=$PATH make check"
     set -e
 fi
 
+rm -f /usr/bin/gawk-5.3.2
 make install
 
-mkdir -p /usr/share/doc/gawk-5.1.1
-cp doc/{awkforai.txt,*.{eps,pdf,jpg}} /usr/share/doc/gawk-5.1.1
+ln -sv gawk.1 /usr/share/man/man1/awk.1
+install -Dm644 doc/{awkforai.txt,*.{eps,pdf,jpg}} -t /usr/share/doc/gawk-5.3.2
+
 

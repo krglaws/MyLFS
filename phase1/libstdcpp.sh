@@ -9,10 +9,9 @@ cd build
     --disable-multilib              \
     --disable-nls                   \
     --disable-libstdcxx-pch         \
-    --with-gxx-include-dir=/tools/$LFS_TGT/include/c++/12.2.0
+    --with-gxx-include-dir=/tools/$LFS_TGT/include/c++/15.2.0
 
 make
 make DESTDIR=$LFS install
 
-rm -v $LFS/usr/lib/lib{stdc++,stdc++fs,supc++}.la
-
+rm -v $LFS/usr/lib/lib{stdc++{,exp,fs},supc++}.la

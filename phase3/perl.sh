@@ -1,13 +1,14 @@
 # Perl Phase 3
-sh Configure -des                                        \
-             -Dprefix=/usr                               \
-             -Dvendorprefix=/usr                         \
-             -Dprivlib=/usr/lib/perl5/5.36/core_perl     \
-             -Darchlib=/usr/lib/perl5/5.36/core_perl     \
-             -Dsitelib=/usr/lib/perl5/5.36/site_perl     \
-             -Dsitearch=/usr/lib/perl5/5.36/site_perl    \
-             -Dvendorlib=/usr/lib/perl5/5.36/vendor_perl \
-             -Dvendorarch=/usr/lib/perl5/5.36/vendor_perl
+sh Configure -des                                         \
+             -D prefix=/usr                               \
+             -D vendorprefix=/usr                         \
+             -D useshrplib                                \
+             -D privlib=/usr/lib/perl5/5.42/core_perl     \
+             -D archlib=/usr/lib/perl5/5.42/core_perl     \
+             -D sitelib=/usr/lib/perl5/5.42/site_perl     \
+             -D sitearch=/usr/lib/perl5/5.42/site_perl    \
+             -D vendorlib=/usr/lib/perl5/5.42/vendor_perl \
+             -D vendorarch=/usr/lib/perl5/5.42/vendor_perl
 
 make
 make install

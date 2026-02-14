@@ -1,4 +1,7 @@
 # Inetutils Phase 4
+
+sed -i 's/def HAVE_TERMCAP_TGETENT/ 1/' telnet/telnet.c
+
 ./configure --prefix=/usr        \
             --bindir=/usr/bin    \
             --localstatedir=/var \
@@ -12,8 +15,7 @@
 
 make
 
-if $RUN_TESTS
-then
+if (( RUN_TESTS )); then
     set +e
     make check
     set -e

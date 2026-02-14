@@ -13,9 +13,9 @@ tar -xf ../$PKG_MPC
 mv ${PKG_MPC%.tar*} mpc
 
 case $(uname -m) in
-    x86_64)
-        sed -e '/m64=/s/lib64/lib/' -i.orig gcc/config/i386/t-linux64
-    ;;
+  x86_64)
+    sed -e '/m64=/s/lib64/lib/' -i gcc/config/i386/t-linux64
+  ;;
 esac
 
 mkdir build
@@ -24,14 +24,15 @@ cd build
 ../configure                                       \
     --target=$LFS_TGT                              \
     --prefix=$LFS/tools                            \
-    --with-glibc-version=2.36                      \
+    --with-glibc-version=2.42                      \
     --with-sysroot=$LFS                            \
     --with-newlib                                  \
     --without-headers                              \
+    --enable-default-pie                           \
+    --enable-default-ssp                           \
     --disable-nls                                  \
     --disable-shared                               \
     --disable-multilib                             \
-    --disable-decimal-float                        \
     --disable-threads                              \
     --disable-libatomic                            \
     --disable-libgomp                              \
@@ -47,5 +48,5 @@ make install
 cd ..
 
 cat gcc/limitx.h gcc/glimits.h gcc/limity.h > \
-  $(dirname $($LFS_TGT-gcc -print-libgcc-file-name))/install-tools/include/limits.h 
+  `dirname $($LFS_TGT-gcc -print-libgcc-file-name)`/include/limits.h 
 

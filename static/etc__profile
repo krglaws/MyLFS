@@ -1,0 +1,13 @@
+# Begin /etc/profile
+
+for i in $(locale); do
+  unset ${i%=*}
+done
+
+if [[ "$TERM" = linux ]]; then
+  export LANG=C.UTF-8
+else
+  export LANG=en_US.UTF-8
+fi
+
+# End /etc/profile

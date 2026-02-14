@@ -1,5 +1,7 @@
 NAME="Linux From Scratch"
-VERSION=$LFS_VERSION
+VERSION="$LFS_VERSION"
 ID=lfs
-PRETTY_NAME="Linux From Scratch LFS_VERSION"
-VERSION_CODENAME=lfs
+PRETTY_NAME="Linux From Scratch $LFS_VERSION"
+VERSION_CODENAME="$LFS_CODENAME"
+HOME_URL="https://www.linuxfromscratch.org/lfs/"
+RELEASE_TYPE="stable"
