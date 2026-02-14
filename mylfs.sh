@@ -33,7 +33,7 @@ on the device you specify.
         -vv                     Show even more output (this is probably what you want).
         -vvv                    Show all build output.
 
-        -D|--systemd           Build the SystemD version of LFS.
+        -D|--systemd            Build the Systemd version of LFS.
 
         -e|--check              Output LFS dependency version information, then exit.
                                 It is recommended that you run this before proceeding
@@ -531,7 +531,7 @@ build_phase() {
         return 0
     fi
 
-    if (( phase != 1 )) && [[ ! -f $LFS/.phase$(( phase-1 )) ]]
+    if (( phase != 1 )) && [[ ! -f $LFS/sources/.phase$(( phase-1 )) ]]
     then
         log_error "phases preceeding phase $phase have not been built"
         return 1
@@ -602,7 +602,7 @@ build_phase() {
         return 1
     fi
 
-    touch "$LFS/.phase$phase"
+    touch "$LFS/sources/.phase$phase"
 
     return 0
 }
@@ -1053,10 +1053,6 @@ main() {
     fi
     with_log "unmounting image" unmount_image
 }
-
-# ###########
-# Start build
-# ~~~~~~~~~~~
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
     main "$@"

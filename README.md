@@ -1,16 +1,14 @@
 # MyLFS
 It's a giant bash script that builds Linux From Scratch.
 
-Pronounce it in whatever way seems best to you.
+If you don't know what this is, or haven't built Linux From Scratch on your own before, you should go through the LFS [book](https://linuxfromscratch.org) before using this script. I have been careful to leave some comments throughout the script indicating the section of the book that a particular part of the script comes from, although most sections are not marked. For example, you might see "LFS 12.4 Section 4.2". For someone wanting to understand this script while going through the book, paying attention to these may come in handy.
 
-If you don't know what this is, or haven't built Linux From Scratch on your own before, you should go through the LFS [book](https://linuxfromscratch.org) before using this script.
+This is a script that I wrote for myself and for my own use, but I encourage others to fork this repository and either craft their own versions, or submit PRs to this one.
 
 ## How To Use
-Basically, just run `sudo ./mylfs.sh --build-all` and then stare at your terminal for several hours. Maybe meditate on life or something while you wait. Or maybe clean your room or do your dishes finally. I don't know. Do whatever you want. Maybe by the end of the script, you'll realize why you love linux so much: you love it because it is *hard*. Just like going to the moon, god dammit.
-
+Consult the `mylfs.sh` help message to get a full picture of its features:
 ```
-$ sudo ./mylfs.sh --help
-
+$ ./mylfs.sh --help
 Welcome to MyLFS.
 
     WARNING: Most of the functionality in this script requires root privilages,
@@ -23,14 +21,17 @@ at a time by using the various commands outlined below. Before building anything
 however, you should be sure to run the script with '--check' to verify the
 dependencies on your system. If you want to install the IMG file that this
 script produces onto a storage device, you can specify '--install /dev/<devname>'
-on the commandline. Be careful with that last one - it WILL destroy all partitions
+on the commandline. Be careful with that last one -- it WILL destroy all partitions
 on the device you specify.
 
     options:
-        -v|--version            Print the LFS version this build is based on, then exit.
+        -V|--version            Print the LFS version this build is based on, then exit.
 
-        -V|--verbose            The script will output more information where applicable
-                                (careful what you wish for).
+        -v                      Show more output.
+        -vv                     Show even more output (this is probably what you want).
+        -vvv                    Show all build output.
+
+        -D|--systemd            Build the Systemd version of LFS.
 
         -e|--check              Output LFS dependency version information, then exit.
                                 It is recommended that you run this before proceeding
@@ -43,9 +44,13 @@ on the device you specify.
 
         -d|--download-packages  Download all packages into the 'packages' directory, then
                                 exit.
+        -s|--skip-download      Skip the download package step in operations that normally
+                                include this step by default.
 
         -i|--init               Create the .img file, partition it, setup basic directory
                                 structure, then exit.
+        -t|--skip-init          Skip the init step in operations that normally include this
+                                step by default.
 
         -p|--start-phase
         -a|--start-package      Select a phase and optionally a package
@@ -55,7 +60,24 @@ on the device you specify.
                                 be used when something broke during a build, and you
                                 don't want to start from the beginning again.
 
-        -o|--one-off            Only build the specified phase/package.
+        -o|--one-off            Used in combination with the above two arguments; only
+                                build the phase/package specified by -p|--start-phase
+                                and -a|--start-package.
+
+        -y|--end-phase
+        -z|--end-package        Phase and optionally a package *before* which to halt
+                                the build. This is useful for a number of use cases
+                                including if you want to experiment with a manual build
+                                on a specific package (e.g. the Linux kernel) but would
+                                like to automate the previous package builds.
+
+        -r|--drop-shell         Starts an interactive bash session inside of each extracted
+                                package directory rather than executing any build scripts.
+                                This can be useful for issuing and validating build commands
+                                manually. You will most likely want to use this together
+                                with -p|--start-phase, -a|--start-package and -o|--one-off,
+                                unless you intend to build more than one or even all packages
+                                manually.
 
         -k|--kernel-config      Optional path to kernel config file to use during linux
                                 build.
@@ -93,16 +115,16 @@ The script builds LFS by completing the following steps:
 4. Partition the IMG file via the loop device we've created, put an ext4 filesystem on it, then add a basic directory structure and some config files (such as /boot/grub/grub.cfg etc).
 
 
-5. Build initial cross compilation tools. This corresponds to chapter 5 in the LFS book.
+5. Build initial cross compilation tools. This corresponds to chapter 5 in the LFS book, and "phase 1" of the script.
 
 
-6. Begin to build tools required for minimal chroot environment. (chapter 6)
+6. Begin to build tools required for minimal chroot environment. (chapter 6/phase 2)
 
 
-7. Enter chroot environment, and build remaining tools needed to build the entire LFS system. (chapter 7)
+7. Enter chroot environment, and build remaining tools needed to build the entire LFS system. (chapter 7/phase 3)
 
 
-8. Build the entire LFS system from within chroot envirnment, including the kernel, GRUB, and others. (chapter 8)
+8. Build the entire LFS system from within chroot envirnment, including the kernel, GRUB, and others. (chapter 8+/phase 4)
 
 
 That's it.
