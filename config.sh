@@ -33,7 +33,7 @@ export CONFIG_SITE=$LFS/usr/share/config.site
 export PATH=/usr/bin:/usr/sbin
 if [ ! -L /bin ]; then PATH=/bin:$PATH; fi
 PATH=$LFS/tools/bin:$PATH
-LFS_IMG=$SCRIPT_DIR/lfs.img
+LFS_IMG=$SCRIPT_DIR/lfs-systemd.img
 LFS_IMG_SIZE=$((10*1024*1024*1024)) # 10 GiB
 INSTALL_MOUNT=$SCRIPT_DIR/mnt/install
 LFS_PACKAGE_LIST=$SCRIPT_DIR/packages.sh
@@ -68,7 +68,7 @@ INIT=0  # create (mostly) empty image file
 STARTPHASE=  # phase to start build at
 MOUNT=0  # mount the image file onto $LFS
 UNMOUNT=0  # opposite of MOUNT
-INSTALLTARGET=  # path to device file (please don't nuke your hard drive)
+INSTALLTARGET=  # path to device file to install LFS on (please don't nuke your hard drive)
 CLEAN=0  # delete $LFS_IMG and files under $SCRIPT_DIR/logs
 
 ##############
@@ -185,6 +185,21 @@ Name=eth0
 [Network]
 Address=192.168.0.2/24
 Gateway=192.168.0.1"
+
+ETC_FSTAB_SYSVINIT="\
+LABEL=$LFS_ROOT_LABEL   /              $LFS_FS_TYPE     defaults            1     1
+proc            /proc          proc     nosuid,noexec,nodev 0     0
+sysfs           /sys           sysfs    nosuid,noexec,nodev 0     0
+devpts          /dev/pts       devpts   gid=5,mode=620      0     0
+tmpfs           /run           tmpfs    defaults            0     0
+devtmpfs        /dev           devtmpfs mode=0755,nosuid    0     0
+tmpfs           /dev/shm       tmpfs    nosuid,nodev        0     0
+cgroup2         /sys/fs/cgroup cgroup2  nosuid,noexec,nodev 0     0
+"
+
+ETC_FSTAB_SYSTEMD="\
+LABEL=$LFS_ROOT_LABEL   /          $LFS_FS_TYPE   defaults              1   1
+"
 
 ETC_SYSTEMD_VCONSOLE="FONT=Lat2-Terminus16"
 

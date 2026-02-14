@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/config.sh"
 source "$SCRIPT_DIR/packages.sh"
 source "$SCRIPT_DIR/logging.sh"
-source "$SCRIPT_DIR/version_check.sh"
+source "$SCRIPT_DIR/version-check.sh"
 
 usage() {
 cat <<EOF
@@ -29,26 +29,30 @@ on the device you specify.
     options:
         -V|--version            Print the LFS version this build is based on, then exit.
 
-        -v|--verbose            The script will output more information where applicable.
-        -vv|--very-verbose      Emit all output from the build scripts to stdout.
+        -v                      Show more output.
+        -vv                     Show even more output (this is probably what you want).
+        -vvv                    Show all build output.
 
-        -D|--system-d           Build the SystemD version of LFS.
+        -D|--systemd           Build the SystemD version of LFS.
 
         -e|--check              Output LFS dependency version information, then exit.
                                 It is recommended that you run this before proceeding
                                 with the rest of the build.
 
-        -b|--build-all          Run the entire script from beginning to end. This is
-                                equivalent to running the script with no arguments.
+        -b|--build-all          Run the entire script from beginning to end.
 
         -x|--extend             Pass in the path to a custom build extension. See the
                                 'example_extension' directory for reference.
 
         -d|--download-packages  Download all packages into the 'packages' directory, then
                                 exit.
+        -s|--skip-download      Skip the download package step in operations that normally
+                                include this step by default.
 
         -i|--init               Create the .img file, partition it, setup basic directory
                                 structure, then exit.
+        -t|--skip-init          Skip the init step in operations that normally include this
+                                step by default.
 
         -p|--start-phase
         -a|--start-package      Select a phase and optionally a package
@@ -62,14 +66,6 @@ on the device you specify.
                                 build the phase/package specified by -p|--start-phase
                                 and -a|--start-package.
 
-        -r|--drop-shell         Starts an interactive bash session inside of each extracted
-                                package directory rather than executing any build scripts.
-                                This can be useful for issuing and validating build commands
-                                manually. You will most likely want to use this together
-                                with -p|--start-phase, -a|--start-package and -o|--one-off,
-                                unless you intend to build more than one or even all packages
-                                manually.
-
         -y|--end-phase
         -z|--end-package        Phase and optionally a package *before* which to halt
                                 the build. This is useful for a number of use cases
@@ -77,6 +73,13 @@ on the device you specify.
                                 on a specific package (e.g. the Linux kernel) but would
                                 like to automate the previous package builds.
 
+        -r|--drop-shell         Starts an interactive bash session inside of each extracted
+                                package directory rather than executing any build scripts.
+                                This can be useful for issuing and validating build commands
+                                manually. You will most likely want to use this together
+                                with -p|--start-phase, -a|--start-package and -o|--one-off,
+                                unless you intend to build more than one or even all packages
+                                manually.
 
         -k|--kernel-config      Optional path to kernel config file to use during linux
                                 build.
@@ -93,8 +96,6 @@ on the device you specify.
 
         -c|--clean              This will unmount and delete the image, and clear the
                                 logs.
-
-        -D|--systemd            Build LFS based on the Systemd version of the book.
 
         -h|--help               Show this message.
 EOF
@@ -226,11 +227,13 @@ init_image() {
         echo "$ETC_GROUP_SYSTEMD" > "$LFS/etc/group"
         mkdir -p "$LFS/etc/systemd/network"
         echo "$ETC_SYSTEMD_NETWORK" > "$LFS/etc/systemd/network/10-eth-static.network"
+        echo "$ETC_FSTAB_SYSTEMD" > "$LFS/etc/fstab"
         echo "$ETC_SYSTEMD_VCONSOLE" > "$LFS/etc/vconsole"
         echo "$ETC_LOCALECONF_SYSTEMD" > "$LFS/etc/locale.conf"
     else
         echo "$ETC_PASSWD_SYSVINIT" > "$LFS/etc/passwd"
         echo "$ETC_GROUP_SYSVINIT" > "$LFS/etc/group"
+        echo "$ETC_FSTAB_SYSVINIT" > "$LFS/etc/fstab"
     fi
 
     # removed at end of build
@@ -442,12 +445,8 @@ build_package() {
     build_instr="
         pushd sources > /dev/null
         cd '$script_name'
-        if (( $drop_shell )); then
-            bash
-        else
-            set -ueExo pipefail
-            $(cat "$script_path")
-        fi
+        set -ueExo pipefail
+        $(cat "$script_path")
         popd
         rm -rf 'sources/$script_name'
     "
@@ -455,33 +454,49 @@ build_package() {
     pushd "$LFS" > /dev/null
 
     run_build() {
-        eval "$build_instr" |& { 
-            {
-                (( SHOWBUILDOUTPUT || drop_shell )) && tee "$log_file";
-            } || cat > "$log_file";
-        }
+        if (( drop_shell )); then
+            pushd "$LFS/sources/$script_name"
+            set +e
+            bash +h -i
+            set -e
+            popd
+        else
+            bash +h -c "$build_instr" |& { 
+                {
+                    (( VERBOSITY == 10 )) && tee "$log_file";
+                } || cat > "$log_file";
+            }
+        fi
     }
 
     run_build_chroot() {
-        chroot "$LFS" /usr/bin/env \
-            HOME=/root \
-            TERM="$TERM" \
-            PATH=/usr/bin:/usr/sbin \
-            /usr/bin/bash +h -c "$build_instr" |& {
-                { 
-                    (( SHOWBUILDOUTPUT || drop_shell )) && tee "$log_file"; 
-                } || cat > "$log_file";
-            }
+        if (( drop_shell )); then
+            chroot "$LFS" /usr/bin/env \
+                HOME=/root \
+                TERM="$TERM" \
+                PATH=/usr/bin:/usr/sbin \
+                /usr/bin/bash +h -i
+        else
+            chroot "$LFS" /usr/bin/env \
+                HOME=/root \
+                TERM="$TERM" \
+                PATH=/usr/bin:/usr/sbin \
+                /usr/bin/bash +h -c "$build_instr" |& {
+                    {
+                        (( VERBOSITY == 10 )) && tee "$log_file"; 
+                    } || cat > "$log_file";
+                }
+        fi
     }
 
     if (( do_chroot )); then
         if ! with_log "running phase$phase/${script_name}.sh in chroot environment" run_build_chroot; then
-            (( ! SHOWBUILDOUTPUT )) && tail -20 "$log_file"
+            tail -20 "$log_file"
             return 1
         fi
     else
         if ! with_log "running phase$phase/${script_name}.sh on host machine" run_build; then
-            (( ! SHOWBUILDOUTPUT )) && tail -20 "$log_file"
+            tail -20 "$log_file"
             return 1
         fi
     fi
@@ -817,6 +832,10 @@ main() {
           shift
           shift
           ;;
+        -o|--one-off)
+          ONEOFF=1
+          shift
+          ;;
         -y|--end-phase)
           ENDPHASE=$2
           [[ -z $ENDPHASE ]] && log_error "$1 missing argument" && exit 1
@@ -827,10 +846,6 @@ main() {
           ENDPKG=$2
           [[ -z $ENDPKG ]] && log_error "$1 missing argument" && exit 1
           shift
-          shift
-          ;;
-        -o|--one-off)
-          ONEOFF=1
           shift
           ;;
         -r|--drop-shell)
@@ -916,7 +931,7 @@ main() {
     if [[ -n $ENDPKG && -z $ENDPHASE ]]; then
         log_error "-y|--end-phase must be defined if -z|--end-package is defined"
         exit 1
-    elif (( ONEOFF )) && [[ -z $ENDPHASE ]]; then
+    elif (( ONEOFF )) && [[ -n $ENDPHASE ]]; then
         log_error "-y|--end-phase has no effect when -o|--one-off is selected"
         exit 1
     fi
