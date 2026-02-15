@@ -179,3 +179,25 @@ This will unmount the IMG file (if it is mounted), delete it, and delete the log
 
 ## Booting
 So far, I have managed to boot the IMG file using QEMU (see the [runqemu.sh](runqemu.sh) script) and on bare metal using a flash drive. I have not been able to boot it up on a VM yet.
+
+I have also been able to get the LFS.img file to boot in Proxmox 9.1.4, as follows:
+
+Create a new VM in Proxmox. Configure the VM as normal, but do not attach a disk.
+
+Upload or otherwise transfer the .img file to the Proxmox host, to one of the stoarge ids avaialable. I used:
+
+```sh
+scp lfs.img root@<proxmoxIP>:/<storage_id>
+```
+
+Next, run
+```sh
+qm importdisk <VMID> path/to/lfs.img <storage_id>
+```
+
+VMID is the VM ID of the newly created machine. storage_id is the name of the storage you transferred the lfs.img file to.
+
+Then go to the VM hardware section for the new VM; there should be a disk at the bottom of the list that says 'unused' or similar. Double-
+click it and add it to the VM.
+
+Finally, go to the options section for the new VM, and make sure the new disk is added to the boot order, and start up your VM.
