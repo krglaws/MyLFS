@@ -1,6 +1,7 @@
 # Ninja Phase 4
-export NINJAJOBS=4
 
+# make ninja read the NINJAJOBS env so you can
+# do export NINJAJOBS=4 before a ninja build
 sed -i '/int Guess/a \
   int   j = 0;\
   char* jobs = getenv( "NINJAJOBS" );\

@@ -406,6 +406,9 @@ build_package() {
         script_path="$EXTENSIONDIR/scripts/${script_name}.sh"
     fi
 
+    # ensure log dir
+    mkdir -p "$(dirname "$log_file")"
+
     if [[ ! -f $script_path ]]; then
         log_error "'$script_path': file does not exist"
         return 1
