@@ -300,9 +300,9 @@ download_packages() {
 
     _download_url() {
         local url=${1:?_download_url(): url required}
-        if ! find "$LFS_PACKAGE_DIR" -mindepth 1 ! -name '*.in_progress' | \
+        if ! find "$package_dir" -mindepth 1 ! -name '*.in_progress' | \
             grep "$(basename "$url")" > /dev/null; then
-            if ! curl --location --silent --output "$LFS_PACKAGE_DIR/$(basename "$url")" "$url"; then
+            if ! curl --location --silent --output "$package_dir/$(basename "$url")" "$url"; then
                 log_error "failed to download '$url'"
                 return 1
             fi
@@ -315,7 +315,7 @@ download_packages() {
     for url in $package_urls; do
         # track in-progress downloads and remove packages we failed to download in previous runs
         local dwnldfile
-        dwnldfile="$LFS_PACKAGE_DIR/$(basename "$url")"
+        dwnldfile="$package_dir/$(basename "$url")"
         local in_progress="${dwnldfile}.in_progress"
         if [[ -f $in_progress ]]; then
             log_warning "$dwnldfile appears to be incomplete -- redownloading"
@@ -386,7 +386,7 @@ unmount_image() {
 
     # detach loop device
     local ATTACHED_LOOP
-    ATTACHED_LOOP=$(losetup | grep "$LFS_IMG" | cut -d" " -f1)
+    ATTACHED_LOOP=$(losetup | grep "$LFS_IMG" | awk '{print $1}')
     if [[ -n "$ATTACHED_LOOP" ]]; then
         with_log "detatching $ATTACHED_LOOP" losetup -d "$ATTACHED_LOOP"
     fi
@@ -426,7 +426,7 @@ build_package() {
 
     local pkg_path
     if [[ $tar_name != "_" ]]; then
-        if [[ -z ${!pkg_var_name} ]]; then
+        if [[ ! -v $pkg_var_name ]] || [[ -z ${!pkg_var_name} ]]; then
             log_error "'$pkg_var_name': package variable is empty or undefined"
             return 1
         fi
@@ -478,7 +478,7 @@ build_package() {
                 HOME=/root \
                 TERM="$TERM" \
                 PATH=/usr/bin:/usr/sbin \
-                /usr/bin/bash +h -i
+                /usr/bin/bash -c "cd sources/$script_name && bash +h -i"
         else
             chroot "$LFS" /usr/bin/env \
                 HOME=/root \
@@ -491,6 +491,9 @@ build_package() {
                 }
         fi
     }
+
+    rm -f "$log_file"
+    touch "$log_file"
 
     if (( do_chroot )); then
         if ! with_log "running phase$phase/${script_name}.sh in chroot environment" run_build_chroot; then
@@ -505,7 +508,7 @@ build_package() {
     fi
 
     popd > /dev/null
-    gzip -c "$log_file" > "${log_file}.gz"
+    gzip -f "$log_file"
 
     return 0
 }
@@ -904,9 +907,16 @@ main() {
         fi
     done
     if (( ! opcount )); then
-        log_error 'must specify one of:'\
-        $'\n-b|--build-all\n-e|--check\n-d|--download-packages\n-i|--init\n-p|--start-phase\n'\
-        $'-m|--mount\n-u|--umount\n-n|--install\n-c|--clean'
+        log_error "must specify one of:
+    -b|--build-all
+    -e|--check
+    -d|--download-packages
+    -i|--init
+    -p|--start-phase
+    -m|--mount
+    -u|--umount
+    -n|--install
+    -c|--clean"
         exit 1
     fi
 
