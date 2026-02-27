@@ -983,7 +983,10 @@ main() {
         with_log "installing image to '$INSTALLTARGET'" install_image
         exit
     fi # else BUILDALL/STARTPHASE
-
+    
+    # create log directory
+    mkdir -p $SCRIPT_DIR/logs
+    
     build_loop() {
         local stop_phase=4
         if [[ -n $EXTENSIONDIR ]]; then
