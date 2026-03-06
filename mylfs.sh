@@ -257,6 +257,7 @@ init_image() {
         install_static "$f"
     done
     if [[ -n $KERNELCONFIG ]]; then
+        mkdir "$LFS/boot"
         cp "$KERNELCONFIG" "$LFS/boot/config-$LFS_KERNEL_VERSION"
     fi
 
@@ -372,23 +373,26 @@ unmount_image() {
         return 1
     fi
 
+    # flush writes to disk
+    sync
+
     # unmount everything
-    local MOUNTED_LOCS
-    MOUNTED_LOCS=$(findmnt -R "$LFS" -o TARGET -n -l | tac)
+    local mounted_locs
+    mounted_locs=$(findmnt -R "$LFS" -o TARGET -n -l | tac)
     IFS=$'\n'
-    if [[ -n $MOUNTED_LOCS ]]; then
+    if [[ -n $mounted_locs ]]; then
         local loc
-        for loc in $MOUNTED_LOCS; do
-            with_log "unmounting $loc" umount "$loc"
+        for loc in $mounted_locs; do
+            with_log "unmounting $loc" umount -l "$loc"
         done
     fi
     unset IFS
 
     # detach loop device
-    local ATTACHED_LOOP
-    ATTACHED_LOOP=$(losetup | grep "$LFS_IMG" | awk '{print $1}')
-    if [[ -n "$ATTACHED_LOOP" ]]; then
-        with_log "detatching $ATTACHED_LOOP" losetup -d "$ATTACHED_LOOP"
+    local attached_loop
+    attached_loop=$(losetup | grep "$LFS_IMG" | awk '{print $1}')
+    if [[ -n "$attached_loop" ]]; then
+        with_log "detatching $attached_loop" losetup -d "$attached_loop"
     fi
 }
 
@@ -451,7 +455,9 @@ build_package() {
         set -ueExo pipefail
         $(cat "$script_path")
         popd
-        rm -rf 'sources/$script_name'
+        # keep linux src around for future rebuilds
+        set +e
+        [[ $script_name != linux ]] && rm -rf 'sources/$script_name'
     "
 
     pushd "$LFS" > /dev/null
@@ -460,7 +466,7 @@ build_package() {
         if (( drop_shell )); then
             pushd "$LFS/sources/$script_name"
             set +e
-            bash +h -i
+            bash +h
             set -e
             popd
         else
@@ -478,7 +484,7 @@ build_package() {
                 HOME=/root \
                 TERM="$TERM" \
                 PATH=/usr/bin:/usr/sbin \
-                /usr/bin/bash -c "cd sources/$script_name && bash +h -i"
+                /usr/bin/bash -c "cd sources/$script_name && bash +h"
         else
             chroot "$LFS" /usr/bin/env \
                 HOME=/root \
@@ -658,7 +664,7 @@ build_extension() {
     fi
 
     # install template files if present
-    if [ -d "$EXTENSIONDIR/templates" ]; then
+    if [[ -d $EXTENSIONDIR/templates ]]; then
         for f in "$EXTENSIONDIR/templates/"*; do
             install_template "$f"
         done
@@ -688,8 +694,13 @@ install_image() {
       nvme[0-9]n[1-9])
         part_prefix="p"
         ;;
+      loop[0-9])
+        # useful if you run out of disk space during the
+        # build and want to transfer to a bigger file
+        part_prefix="p"
+        ;;
       *)
-        log_eror "unsupported device name '$INSTALLTARGET'."
+        log_error "unsupported device name '$INSTALLTARGET'."
         return 1
         ;;
     esac
@@ -699,56 +710,95 @@ install_image() {
         exit 1
     fi
 
-    # wipe beginning of device (sometimes grub-install complains about "multiple partition labels")
-    with_log "wiping partition table of $INSTALLTARGET" dd if=/dev/zero of="$INSTALLTARGET" count=2048
- 
-    # partition the device.
-    # remove spaces and comments
-    local fdisk_instr
-    # shellcheck disable=SC2001
-    fdisk_instr=$(echo "$FDISK_INSTR" | sed 's/ *#.*//')
+    format_target () {
+        # wipe beginning of device (sometimes grub-install complains about "multiple partition labels")
+        dd if=/dev/zero of="$INSTALLTARGET" count=2048
 
-    if ! echo "$fdisk_instr" | fdisk "$INSTALLTARGET" |& { (( VERBOSITY == 10 )) && cat || cat > /dev/null; }
-    then
-        log_error "failed to format $INSTALLTARGET -- consider manually clearing $INSTALLTARGET's parition table"
-        return 1
-    fi
+        # partition the device.
+        # remove spaces and comments
+        local fdisk_instr
+        # shellcheck disable=SC2001
+        fdisk_instr=$(echo "$FDISK_INSTR" | sed 's/ *#.*//')
 
-    mkdir -p "$LFS" "$INSTALL_MOUNT"
+        if ! echo "$fdisk_instr" | fdisk "$INSTALLTARGET" |& { (( VERBOSITY == 10 )) && cat || cat > /dev/null; }
+        then
+            if [[ $INSTALLTARGET =~ /dev/loop[0-9] ]]; then
+                local fname
+                fname=$(losetup --output BACK-FILE --noheadings "$INSTALLTARGET")
+                losetup -d $INSTALLTARGET
+                losetup -P "$INSTALLTARGET" "$fname"
+            else
+                log_error "failed to format $INSTALLTARGET -- consider manually clearing $INSTALLTARGET's parition table"
+                return 1
+            fi
+        fi
+    }
+    with_log "formatting $INSTALLTARGET" format_target
 
-    # mount IMG file
-    local loop
-    loop=$(losetup -f)
-    local loop_p1=${loop}p1
-    losetup -P "$loop" "$LFS_IMG"
+    mount_target () {
+        mkdir -p "$LFS" "$INSTALL_MOUNT"
 
-    # setup install partition
-    local install_p1="${INSTALLTARGET}${part_prefix}1"
-    mkfs -t "$LFS_FS_TYPE" "$install_p1" &> /dev/null
-    e2label "$install_p1" "$LFS_ROOT_LABEL"
+        # mount IMG file
+        local loop
+        loop=$(losetup -f)
+        local loop_p1=${loop}p1
+        losetup -P "$loop" "$LFS_IMG"
 
-    # mount install partition
-    mount "$install_p1" "$INSTALL_MOUNT"
-    mount "$loop_p1" "$LFS"
+        # setup install partition
+        local install_p1="${INSTALLTARGET}${part_prefix}1"
+        mkfs -t "$LFS_FS_TYPE" "$install_p1" &> /dev/null
+        e2label "$install_p1" "$LFS_ROOT_LABEL"
+
+        # mount install partition
+        mount "$install_p1" "$INSTALL_MOUNT"
+        mount "$loop_p1" "$LFS"
+
+        # make sure grub.cfg is pointing at the right drive
+        local partuuid
+        partuuid=$(lsblk -o PARTUUID "$INSTALLTARGET" | tail -1)
+        sed -Ei "s/root=PARTUUID=[0-9a-z-]+/root=PARTUUID=${partuuid}/" "$INSTALL_MOUNT/boot/grub/grub.cfg"
+
+        mount --bind /dev "$INSTALL_MOUNT/dev"
+        mount --bind /dev/pts "$INSTALL_MOUNT/dev/pts"
+        mount -t sysfs sysfs "$INSTALL_MOUNT/sys"
+    }
+
+    with_log "mounting $INSTALLTARGET" mount_target
 
     with_log "copying files" cp -r "$LFS/"* "$INSTALL_MOUNT"
 
-    # make sure grub.cfg is pointing at the right drive
-    local partuuid
-    partuuid=$(lsblk -o PARTUUID "$INSTALLTARGET" | tail -1)
-    sed -Ei "s/root=PARTUUID=[0-9a-z-]+/root=PARTUUID=${partuuid}/" "$INSTALL_MOUNT/boot/grub/grub.cfg"
+    install_grub () {
+        chroot "$INSTALL_MOUNT" /usr/bin/bash -c
+            "grub-install '$INSTALLTARGET' --target i386-pc" |& \
+            { (( VERBOSITY == 10 )) && cat || cat > /dev/null; };
+    }
 
-    mount --bind /dev "$INSTALL_MOUNT/dev"
-    mount --bind /dev/pts "$INSTALL_MOUNT/dev/pts"
-    mount -t sysfs sysfs "$INSTALL_MOUNT/sys"
+    with_log "installing GRUB -- this may take a few minutes" install_grub
 
-    with_log "installing GRUB -- this may take a few minutes" \
-        chroot "$INSTALL_MOUNT" /usr/bin/bash -c \
-            "grub-install '$INSTALLTARGET' --target i386-pc"
+    unmount_target() {
+        # flush writes to disk
+        sync
 
-    with_log "unmounting $LFS_IMG" unmount_image
+        # unmount everything
+        local mounted_locs
+        mounted_locs=$(findmnt -R "$INSTALL_MOUNT" -o TARGET -n -l | tac)
+        IFS=$'\n'
+        if [[ -n $mounted_locs ]]; then
+            local loc
+            for loc in $mounted_locs; do
+                with_log "unmounting $loc" umount -l "$loc"
+            done
+        fi
+        unset IFS
 
-    log_info "installation successful"
+        # detach loop device
+        local attached_loop
+        attached_loop=$(losetup | grep "$INSTALLTARGET" | awk '{print $1}')
+        if [[ -n "$attached_loop" ]]; then
+            with_log "detatching $attached_loop" losetup -d "$attached_loop"
+        fi
+    }
+    with_log unmount_target "unmounting $INSTALLTARGET"
 }
 
 clean_image() {
@@ -774,7 +824,7 @@ main() {
 
     cd "$SCRIPT_DIR"
 
-    while [ $# -gt 0 ]; do
+    while [[ $# -gt 0 ]]; do
       case $1 in
         -V|--version)
           echo $LFS_VERSION
@@ -994,6 +1044,7 @@ main() {
         exit
     elif [[ -n $INSTALLTARGET ]]; then
         with_log "installing image to '$INSTALLTARGET'" install_image
+        with_log "unmounting $LFS_IMG" unmount_image
         exit
     fi # else BUILDALL/STARTPHASE
 
